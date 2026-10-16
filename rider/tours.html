@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tours – ZenjiGO</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="../css/style.css" rel="stylesheet">
+</head>
+<body class="app-shell">
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+  <aside class="app-sidebar" id="appSidebar">
+    <div class="brand">Zenji<span>GO</span></div>
+    <nav class="mt-2">
+      <a href="dashboard.html" class="nav-link"><i class="bi bi-house"></i> Home</a>
+      <a href="tours.html" class="nav-link active"><i class="bi bi-compass"></i> Tours</a>
+      <a href="profile.html" class="nav-link"><i class="bi bi-person"></i> Profile</a>
+      <a href="#" class="nav-link" onclick="logout()"><i class="bi bi-box-arrow-left"></i> Logout</a>
+    </nav>
+  </aside>
+  <div class="app-main">
+    <div class="app-topbar">
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-link d-lg-none p-0" onclick="toggleSidebar()"><i class="bi bi-list fs-3"></i></button>
+        <h5 class="mb-0 fw-bold">Tour Packages</h5>
+      </div>
+    </div>
+    <div class="app-content">
+      <div class="row g-4" id="packages"><div class="col-12 text-center py-4"><div class="spinner-zenji mx-auto"></div></div></div>
+      <h5 class="fw-bold mt-4 mb-3">My bookings</h5>
+      <div class="card-zenji"><div class="card-body p-0" id="bookings"><div class="text-center py-3 text-muted small">Loading...</div></div></div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="../js/config.js"></script><script src="../js/api.js"></script><script src="../js/utils.js"></script>
+  <script>
+    if (!requireAuth('rider')) throw new Error('auth');
+    async function load() {
+      try {
+        const pkgs = await Api.rider.tourPackages();
+        const list = Array.isArray(pkgs) ? pkgs : [];
+        const el = document.getElementById('packages');
+        if (!list.length) { el.innerHTML = '<div class="col-12 text-muted">No packages available right now.</div>'; }
+        else {
+          el.innerHTML = list.map(p => '<div class="col-md-4"><div class="feature-card"><h6 class="fw-bold">' + (p.name||p.title||'Tour') + '</h6><p class="small text-muted">' + (p.description||'') + '</p><div class="fw-semibold text-teal mb-2">' + formatMoney(p.price||p.fare) + '</div><button class="btn btn-aqua btn-sm" onclick="book(\'' + p.id + '\')">Book</button></div></div>').join('');
+        }
+      } catch (e) { document.getElementById('packages').innerHTML = '<div class="col-12 text-danger">' + e.message + '</div>'; }
+      try {
+        const tours = await Api.rider.tours();
+        const list = Array.isArray(tours) ? tours : [];
+        document.getElementById('bookings').innerHTML = list.length ? list.map(t => '<div class="px-3 py-3 border-bottom"><div class="fw-semibold">' + (t.packageName||t.name||'Tour') + '</div><div class="small text-muted">' + (t.status||'') + ' · ' + formatDate(t.createdAt||t.date) + '</div></div>').join('') : '<div class="text-center py-3 text-muted small">No bookings yet.</div>';
+      } catch (e) { document.getElementById('bookings').innerHTML = '<div class="p-3 text-danger small">' + e.message + '</div>'; }
+    }
+    async function book(packageId) {
+      try {
+        await Api.rider.bookTour({ packageId });
+        showToast('Tour booked!');
+        load();
+      } catch (e) { showToast(e.message, 'error'); }
+    }
+    load();
+  </script>
+</body>
+</html>

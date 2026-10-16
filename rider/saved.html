@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Saved Places – ZenjiGO</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="../css/style.css" rel="stylesheet">
+</head>
+<body class="app-shell">
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+  <aside class="app-sidebar" id="appSidebar">
+    <div class="brand">Zenji<span>GO</span></div>
+    <nav class="mt-2">
+      <a href="dashboard.html" class="nav-link"><i class="bi bi-house"></i> Home</a>
+      <a href="saved.html" class="nav-link active"><i class="bi bi-bookmark"></i> Saved</a>
+      <a href="profile.html" class="nav-link"><i class="bi bi-person"></i> Profile</a>
+      <a href="#" class="nav-link" onclick="logout()"><i class="bi bi-box-arrow-left"></i> Logout</a>
+    </nav>
+  </aside>
+  <div class="app-main">
+    <div class="app-topbar">
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-link d-lg-none p-0" onclick="toggleSidebar()"><i class="bi bi-list fs-3"></i></button>
+        <h5 class="mb-0 fw-bold">Saved Places</h5>
+      </div>
+      <button class="btn btn-aqua btn-sm" data-bs-toggle="modal" data-bs-target="#addModal">Add place</button>
+    </div>
+    <div class="app-content">
+      <div class="card-zenji"><div class="card-body p-0" id="list"><div class="text-center py-4"><div class="spinner-zenji mx-auto"></div></div></div></div>
+    </div>
+  </div>
+  <div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content rounded-4">
+      <div class="modal-header border-0"><h5 class="modal-title fw-bold">Add saved place</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-3"><label class="form-label small fw-semibold">Label</label><input id="label" class="form-control" placeholder="Home / Work"></div>
+        <div class="mb-3"><label class="form-label small fw-semibold">Address</label><input id="address" class="form-control"></div>
+        <div class="row g-2 mb-3">
+          <div class="col-6"><label class="form-label small">Lat</label><input type="number" step="any" id="lat" class="form-control" value="-6.1659"></div>
+          <div class="col-6"><label class="form-label small">Lng</label><input type="number" step="any" id="lng" class="form-control" value="39.2026"></div>
+        </div>
+        <button class="btn btn-primary-zenji" onclick="addPlace()">Save</button>
+      </div>
+    </div></div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="../js/config.js"></script><script src="../js/api.js"></script><script src="../js/utils.js"></script>
+  <script>
+    if (!requireAuth('rider')) throw new Error('auth');
+    async function load() {
+      try {
+        const data = await Api.rider.savedLocations();
+        const list = Array.isArray(data) ? data : [];
+        const el = document.getElementById('list');
+        if (!list.length) { el.innerHTML = '<div class="text-center py-4 text-muted">No saved places.</div>'; return; }
+        el.innerHTML = list.map(p => '<div class="d-flex justify-content-between align-items-center px-3 py-3 border-bottom"><div><div class="fw-semibold">' + (p.label || p.name || 'Place') + '</div><div class="small text-muted">' + (p.address || '') + '</div></div><button class="btn btn-sm btn-outline-danger" onclick="del(\'' + p.id + '\')">Delete</button></div>').join('');
+      } catch (e) { document.getElementById('list').innerHTML = '<div class="text-center py-4 text-danger">' + e.message + '</div>'; }
+    }
+    async function addPlace() {
+      try {
+        await Api.rider.createSavedLocation({ label: document.getElementById('label').value, address: document.getElementById('address').value, lat: parseFloat(document.getElementById('lat').value), lng: parseFloat(document.getElementById('lng').value) });
+        showToast('Saved'); bootstrap.Modal.getInstance(document.getElementById('addModal')).hide(); load();
+      } catch (e) { showToast(e.message, 'error'); }
+    }
+    async function del(id) { if (!confirm('Delete?')) return; try { await Api.rider.deleteSavedLocation(id); load(); } catch (e) { showToast(e.message, 'error'); } }
+    load();
+  </script>
+</body>
+</html>

@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Driver Dashboard – ZenjiGO</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="../css/style.css" rel="stylesheet">
+</head>
+<body class="app-shell">
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+  <aside class="app-sidebar" id="appSidebar">
+    <div class="brand">Zenji<span>GO</span> <small class="d-block text-white-50 fs-6 fw-normal">Driver</small></div>
+    <nav class="mt-2">
+      <a href="dashboard.html" class="nav-link active"><i class="bi bi-house"></i> Home</a>
+      <a href="requests.html" class="nav-link"><i class="bi bi-bell"></i> Requests</a>
+      <a href="earnings.html" class="nav-link"><i class="bi bi-cash-stack"></i> Earnings</a>
+      <a href="history.html" class="nav-link"><i class="bi bi-clock-history"></i> History</a>
+      <a href="chat.html" class="nav-link"><i class="bi bi-chat"></i> Chat</a>
+      <a href="profile.html" class="nav-link"><i class="bi bi-person"></i> Profile</a>
+      <a href="#" class="nav-link" onclick="logout()"><i class="bi bi-box-arrow-left"></i> Logout</a>
+    </nav>
+  </aside>
+  <div class="app-main">
+    <div class="app-topbar">
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-link d-lg-none p-0" onclick="toggleSidebar()"><i class="bi bi-list fs-3 text-dark"></i></button>
+        <h5 class="mb-0 fw-bold">Driver Home</h5>
+      </div>
+      <div class="d-flex align-items-center gap-3">
+        <span class="status-badge" id="onlineBadge">—</span>
+        <div class="form-check form-switch mb-0">
+          <input class="form-check-input" type="checkbox" id="onlineToggle" onchange="toggleOnline()">
+          <label class="form-check-label small" for="onlineToggle">Online</label>
+        </div>
+      </div>
+    </div>
+    <div class="app-content">
+      <div class="row g-4">
+        <div class="col-md-4">
+          <div class="card-zenji p-4">
+            <div class="small text-muted">Today's earnings</div>
+            <h3 class="fw-bold mb-0" id="todayEarn">—</h3>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card-zenji p-4">
+            <div class="small text-muted">Completed rides</div>
+            <h3 class="fw-bold mb-0" id="rideCount">—</h3>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card-zenji p-4">
+            <div class="small text-muted">Status</div>
+            <h5 class="fw-bold mb-0" id="statusText">Loading...</h5>
+          </div>
+        </div>
+        <div class="col-lg-7">
+          <div class="card-zenji">
+            <div class="card-header d-flex justify-content-between">
+              <span>Incoming requests</span>
+              <a href="requests.html" class="small text-teal">View all</a>
+            </div>
+            <div class="card-body p-0" id="requests">
+              <div class="text-center py-4"><div class="spinner-zenji mx-auto"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-5">
+          <div class="card-zenji p-4">
+            <h6 class="fw-bold mb-3">Quick actions</h6>
+            <div class="d-grid gap-2">
+              <a href="requests.html" class="btn btn-outline-secondary btn-sm text-start"><i class="bi bi-bell me-2"></i>Ride requests</a>
+              <a href="earnings.html" class="btn btn-outline-secondary btn-sm text-start"><i class="bi bi-cash me-2"></i>Earnings & finance</a>
+              <a href="history.html" class="btn btn-outline-secondary btn-sm text-start"><i class="bi bi-clock me-2"></i>Ride history</a>
+              <a href="profile.html" class="btn btn-outline-secondary btn-sm text-start"><i class="bi bi-person me-2"></i>Profile & documents</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/utils.js"></script>
+  <script>
+    if (!requireAuth('driver')) throw new Error('auth');
+    let isOnline = false;
+
+    async function loadProfile() {
+      try {
+        const me = await Api.driver.me();
+        Api.setUser(me);
+        isOnline = !!(me.online || me.isOnline);
+        document.getElementById('onlineToggle').checked = isOnline;
+        updateBadge();
+        document.getElementById('statusText').textContent = isOnline ? 'Available for rides' : 'Offline';
+      } catch (e) {
+        if (e.status === 401) logout();
+      }
+    }
+
+    function updateBadge() {
+      const b = document.getElementById('onlineBadge');
+      b.className = 'status-badge ' + (isOnline ? 'status-online' : 'status-offline');
+      b.textContent = isOnline ? 'Online' : 'Offline';
+    }
+
+    async function toggleOnline() {
+      const next = document.getElementById('onlineToggle').checked;
+      try {
+        await Api.driver.setOnline(next);
+        isOnline = next;
+        updateBadge();
+        document.getElementById('statusText').textContent = isOnline ? 'Available for rides' : 'Offline';
+        showToast(isOnline ? 'You are online' : 'You are offline');
+        if (isOnline) {
+          // Try share a sample location (Stone Town)
+          try { await Api.driver.updateLocation(-6.1659, 39.2026); } catch {}
+        }
+      } catch (e) {
+        document.getElementById('onlineToggle').checked = isOnline;
+        showToast(e.message, 'error');
+      }
+    }
+
+    async function loadRequests() {
+      try {
+        const data = await Api.driver.rideRequests();
+        const list = data.requests || (Array.isArray(data) ? data : []);
+        const el = document.getElementById('requests');
+        if (!list.length) {
+          el.innerHTML = '<div class="text-center py-4 text-muted small">No pending requests. Go online to receive rides.</div>';
+          return;
+        }
+        el.innerHTML = list.slice(0, 5).map(r => `
+          <div class="px-3 py-3 border-bottom d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-semibold small">${r.pickupAddress || 'Pickup'} → ${r.destinationAddress || 'Drop-off'}</div>
+              <div class="text-muted" style="font-size:0.75rem">${(r.rideType||'').toUpperCase()} · ${formatMoney(r.fare || r.estimatedFare)}</div>
+            </div>
+            <button class="btn btn-aqua btn-sm" onclick="accept('${r.id}')">Accept</button>
+          </div>`).join('');
+      } catch (e) {
+        document.getElementById('requests').innerHTML = `<div class="text-center py-4 text-muted small">${e.message}</div>`;
+      }
+    }
+
+    async function accept(id) {
+      try {
+        await Api.driver.acceptRide(id);
+        showToast('Ride accepted!');
+        location.href = 'active.html?id=' + id;
+      } catch (e) { showToast(e.message, 'error'); }
+    }
+
+    async function loadEarnings() {
+      try {
+        const e = await Api.driver.earnings();
+        document.getElementById('todayEarn').textContent = formatMoney(e.today || e.todayEarnings || e.total || 0);
+        document.getElementById('rideCount').textContent = e.ridesToday || e.count || e.completed || '—';
+      } catch {
+        document.getElementById('todayEarn').textContent = 'TZS 0';
+        document.getElementById('rideCount').textContent = '0';
+      }
+    }
+
+    loadProfile();
+    loadRequests();
+    loadEarnings();
+    setInterval(loadRequests, 12000);
+  </script>
+</body>
+</html>

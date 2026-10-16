@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Driver Registration – ZenjiGO</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="../css/style.css" rel="stylesheet">
+</head>
+<body>
+  <div class="auth-page" style="align-items:flex-start;padding-top:2rem;padding-bottom:2rem">
+    <div class="auth-card" style="max-width:560px">
+      <div class="logo">Zenji<span>GO</span></div>
+      <p class="text-center text-muted mb-4">Driver registration</p>
+      <form id="regForm" onsubmit="submitReg(event)">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Full name *</label>
+            <input name="fullName" class="form-control" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Phone *</label>
+            <div class="input-group">
+              <select id="countryCode" class="form-select" style="max-width:120px"></select>
+              <input name="phoneLocal" id="phoneLocal" class="form-control" required placeholder="6XX XXX XXX" inputmode="numeric">
+            </div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">Email *</label>
+            <input name="email" type="email" class="form-control" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold">National ID *</label>
+            <input name="nationalId" class="form-control" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label small fw-semibold">Home address</label>
+            <input name="homeAddress" class="form-control">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Vehicle type *</label>
+            <select name="vehicleType" class="form-select" required>
+              <option value="boda">Boda</option>
+              <option value="bajaji">Bajaji</option>
+              <option value="taxi">Taxi</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Plate number *</label>
+            <input name="plateNumber" class="form-control" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Color</label>
+            <input name="vehicleColor" class="form-control">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Make</label>
+            <input name="vehicleMake" class="form-control">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Model</label>
+            <input name="vehicleModel" class="form-control">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small fw-semibold">Year</label>
+            <input name="modelYear" type="number" class="form-control" min="1990" max="2030">
+          </div>
+
+          <div class="col-12"><hr class="my-1"><p class="small text-muted mb-2">Documents (required by backend)</p></div>
+          <div class="col-md-6">
+            <label class="form-label small">License</label>
+            <input type="file" name="license" class="form-control" accept="image/*,.pdf">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small">National ID photo</label>
+            <input type="file" name="nationalIdFile" class="form-control" accept="image/*">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small">Insurance</label>
+            <input type="file" name="insurance" class="form-control" accept="image/*,.pdf">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small">Driver photo</label>
+            <input type="file" name="driverPhoto" class="form-control" accept="image/*">
+          </div>
+          <div class="col-12">
+            <label class="form-label small">Vehicle photos</label>
+            <input type="file" name="vehiclePhotos" class="form-control" accept="image/*" multiple>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label small fw-semibold">Phone OTP code *</label>
+            <div class="input-group">
+              <input name="phoneOtpCode" class="form-control" required placeholder="Enter OTP sent to phone">
+              <button type="button" class="btn btn-outline-secondary" id="btnOtp" onclick="sendRegOtp()">Send OTP</button>
+            </div>
+            <div class="form-text">OTP is sent to the phone above using purpose <code>driver_registration</code> (same as app).</div>
+          </div>
+
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary-zenji" id="btnSubmit">Submit registration</button>
+          </div>
+        </div>
+      </form>
+      <p class="text-center small text-muted mt-3 mb-0"><a href="login.html">Already registered? Login</a></p>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/utils.js"></script>
+  <script>
+    fillCountrySelect(document.getElementById('countryCode'), '+255');
+
+    async function sendRegOtp() {
+      const local = document.getElementById('phoneLocal').value.trim();
+      const code = document.getElementById('countryCode').value;
+      if (!local || local.replace(/\D/g, '').length < 7) {
+        showToast('Enter phone first', 'error');
+        return;
+      }
+      const phone = buildPhone(code, local);
+      const btn = document.getElementById('btnOtp');
+      setLoading(btn, true);
+      try {
+        // Same as Flutter: purpose = driver_registration
+        await Api.auth.sendDriverOtp(phone, 'driver_registration');
+        showToast('OTP sent for registration to ' + phone);
+      } catch (e) {
+        showToast(e.message || 'Failed to send OTP', 'error');
+      } finally {
+        setLoading(btn, false);
+      }
+    }
+
+    async function submitReg(e) {
+      e.preventDefault();
+      const form = e.target;
+      const code = document.getElementById('countryCode').value;
+      const local = document.getElementById('phoneLocal').value.trim();
+      const phone = buildPhone(code, local);
+
+      const fields = {
+        fullName: form.fullName.value.trim(),
+        phone: phone,
+        email: form.email.value.trim(),
+        nationalId: form.nationalId.value.trim(),
+        homeAddress: form.homeAddress.value.trim(),
+        vehicleType: form.vehicleType.value,
+        plateNumber: form.plateNumber.value.trim(),
+        vehicleMake: form.vehicleMake.value.trim(),
+        vehicleModel: form.vehicleModel.value.trim(),
+        vehicleColor: form.vehicleColor.value.trim(),
+        modelYear: form.modelYear.value || '',
+        phoneOtpCode: form.phoneOtpCode.value.trim()
+      };
+
+      const files = {
+        license: form.license.files[0],
+        nationalId: form.nationalIdFile.files[0] ? [form.nationalIdFile.files[0]] : [],
+        insurance: form.insurance.files[0],
+        driverPhoto: form.driverPhoto.files[0],
+        vehiclePhotos: Array.from(form.vehiclePhotos.files)
+      };
+
+      const btn = document.getElementById('btnSubmit');
+      setLoading(btn, true);
+      try {
+        await Api.driver.register(fields, files);
+        showToast('Registration submitted! Await approval.');
+        setTimeout(function () { location.href = 'login.html'; }, 1500);
+      } catch (err) {
+        showToast(err.message || 'Registration failed', 'error');
+      } finally {
+        setLoading(btn, false);
+      }
+    }
+  </script>
+</body>
+</html>

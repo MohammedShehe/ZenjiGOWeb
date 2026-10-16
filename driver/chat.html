@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat – ZenjiGO Driver</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="../css/style.css" rel="stylesheet">
+</head>
+<body class="app-shell">
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+  <aside class="app-sidebar" id="appSidebar">
+    <div class="brand">Zenji<span>GO</span> Driver</div>
+    <nav class="mt-2">
+      <a href="dashboard.html" class="nav-link"><i class="bi bi-house"></i> Home</a>
+      <a href="chat.html" class="nav-link active"><i class="bi bi-chat"></i> Chat</a>
+      <a href="profile.html" class="nav-link"><i class="bi bi-person"></i> Profile</a>
+      <a href="#" class="nav-link" onclick="logout()"><i class="bi bi-box-arrow-left"></i> Logout</a>
+    </nav>
+  </aside>
+  <div class="app-main">
+    <div class="app-topbar">
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-link d-lg-none p-0" onclick="toggleSidebar()"><i class="bi bi-list fs-3"></i></button>
+        <h5 class="mb-0 fw-bold">Messages</h5>
+      </div>
+      <button class="btn btn-aqua btn-sm" onclick="openSupport()">Support</button>
+    </div>
+    <div class="app-content">
+      <div class="row g-3">
+        <div class="col-md-4"><div class="card-zenji"><div class="card-body p-0" id="convList"><div class="text-center py-4"><div class="spinner-zenji mx-auto"></div></div></div></div></div>
+        <div class="col-md-8">
+          <div class="card-zenji" style="min-height:400px">
+            <div class="card-header" id="chatTitle">Select a conversation</div>
+            <div class="card-body" id="messages" style="max-height:320px;overflow-y:auto"></div>
+            <div class="p-3 border-top d-none" id="sendBar">
+              <div class="input-group">
+                <input type="text" id="msgInput" class="form-control" placeholder="Type a message...">
+                <button class="btn btn-aqua" onclick="sendMsg()">Send</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="../js/config.js"></script><script src="../js/api.js"></script><script src="../js/utils.js"></script>
+  <script>
+    if (!requireAuth('driver')) throw new Error('auth');
+    let currentId = null;
+    async function loadConvs() {
+      try {
+        const data = await Api.driver.conversations();
+        const list = Array.isArray(data) ? data : [];
+        const el = document.getElementById('convList');
+        if (!list.length) { el.innerHTML = '<div class="text-center py-4 text-muted small">No conversations.</div>'; return; }
+        el.innerHTML = list.map(c => '<a href="#" class="d-block px-3 py-3 border-bottom text-decoration-none text-dark" onclick="openChat(\'' + c.id + '\',\'' + (c.title||c.type||'Chat') + '\')"><div class="fw-semibold small">' + (c.title||c.type||'Chat') + '</div></a>').join('');
+      } catch (e) { document.getElementById('convList').innerHTML = '<div class="p-3 text-danger small">' + e.message + '</div>'; }
+    }
+    async function openChat(id, title) {
+      currentId = id;
+      document.getElementById('chatTitle').textContent = title;
+      document.getElementById('sendBar').classList.remove('d-none');
+      try {
+        const msgs = await Api.driver.messages(id);
+        const list = Array.isArray(msgs) ? msgs : [];
+        document.getElementById('messages').innerHTML = list.map(m => '<div class="mb-2 ' + (m.senderRole==='driver' ? 'text-end' : '') + '"><span class="d-inline-block px-3 py-2 rounded-3 ' + (m.senderRole==='driver' ? 'bg-aqua-soft' : 'bg-light') + ' small">' + (m.text||m.body||'') + '</span></div>').join('') || '<p class="text-muted small">No messages.</p>';
+      } catch (e) { document.getElementById('messages').innerHTML = '<p class="text-danger small">' + e.message + '</p>'; }
+    }
+    async function openSupport() {
+      try {
+        const c = await Api.driver.openSupport();
+        showToast('Support opened');
+        loadConvs();
+        if (c.id) openChat(c.id, 'Support');
+      } catch (e) { showToast(e.message, 'error'); }
+    }
+    async function sendMsg() {
+      const text = document.getElementById('msgInput').value.trim();
+      if (!text || !currentId) return;
+      try {
+        await Api.driver.sendMessage(currentId, text);
+        document.getElementById('msgInput').value = '';
+        openChat(currentId, document.getElementById('chatTitle').textContent);
+      } catch (e) { showToast(e.message, 'error'); }
+    }
+    loadConvs();
+  </script>
+</body>
+</html>

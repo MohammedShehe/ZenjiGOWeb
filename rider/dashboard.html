@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rider Dashboard – ZenjiGO</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="../css/style.css" rel="stylesheet">
+</head>
+<body class="app-shell">
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+  <aside class="app-sidebar" id="appSidebar">
+    <div class="brand">Zenji<span>GO</span> <small class="d-block text-white-50 fs-6 fw-normal">Rider</small></div>
+    <nav class="mt-2">
+      <a href="dashboard.html" class="nav-link active"><i class="bi bi-house"></i> Home</a>
+      <a href="book.html" class="nav-link"><i class="bi bi-plus-circle"></i> Book Ride</a>
+      <a href="history.html" class="nav-link"><i class="bi bi-clock-history"></i> History</a>
+      <a href="wallet.html" class="nav-link"><i class="bi bi-wallet2"></i> Wallet</a>
+      <a href="payments.html" class="nav-link"><i class="bi bi-credit-card"></i> Payments</a>
+      <a href="saved.html" class="nav-link"><i class="bi bi-bookmark"></i> Saved Places</a>
+      <a href="parcels.html" class="nav-link"><i class="bi bi-box-seam"></i> Parcels</a>
+      <a href="tours.html" class="nav-link"><i class="bi bi-compass"></i> Tours</a>
+      <a href="chat.html" class="nav-link"><i class="bi bi-chat"></i> Chat</a>
+      <a href="profile.html" class="nav-link"><i class="bi bi-person"></i> Profile</a>
+      <a href="#" class="nav-link" onclick="logout()"><i class="bi bi-box-arrow-left"></i> Logout</a>
+    </nav>
+  </aside>
+
+  <div class="app-main">
+    <div class="app-topbar">
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-link d-lg-none p-0" onclick="toggleSidebar()"><i class="bi bi-list fs-3 text-dark"></i></button>
+        <h5 class="mb-0 fw-bold">Home</h5>
+      </div>
+      <div class="d-flex align-items-center gap-3">
+        <span class="small text-muted" id="userGreeting">Hello</span>
+        <a href="book.html" class="btn btn-aqua btn-sm">Book a Ride</a>
+      </div>
+    </div>
+
+    <div class="app-content">
+      <div class="row g-4">
+        <div class="col-lg-8">
+          <div class="card-zenji p-4 mb-4">
+            <h5 class="fw-bold mb-3">Where to?</h5>
+            <a href="book.html" class="text-decoration-none">
+              <div class="form-control d-flex align-items-center gap-2 py-3 text-muted">
+                <i class="bi bi-search"></i> Enter destination...
+              </div>
+            </a>
+            <div class="row g-2 mt-3">
+              <div class="col-4">
+                <div class="ride-type-card py-2" onclick="location.href='book.html?type=boda'">
+                  <i class="bi bi-bicycle"></i>
+                  <div class="small fw-semibold mt-1">Boda</div>
+                </div>
+              </div>
+              <div class="col-4">
+                <div class="ride-type-card py-2" onclick="location.href='book.html?type=bajaji'">
+                  <i class="bi bi-scooter"></i>
+                  <div class="small fw-semibold mt-1">Bajaji</div>
+                </div>
+              </div>
+              <div class="col-4">
+                <div class="ride-type-card py-2" onclick="location.href='book.html?type=taxi'">
+                  <i class="bi bi-taxi-front"></i>
+                  <div class="small fw-semibold mt-1">Taxi</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-zenji">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span>Recent rides</span>
+              <a href="history.html" class="small text-teal">See all</a>
+            </div>
+            <div class="card-body p-0" id="recentRides">
+              <div class="text-center py-5 text-muted">
+                <div class="spinner-zenji mx-auto mb-2"></div>
+                Loading...
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-4">
+          <div class="card-zenji p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <span class="text-muted small">Wallet balance</span>
+              <a href="wallet.html" class="small text-teal">Top up</a>
+            </div>
+            <h3 class="fw-bold mb-0" id="walletBal">—</h3>
+          </div>
+          <div class="card-zenji p-4">
+            <h6 class="fw-bold mb-3">Quick links</h6>
+            <div class="d-grid gap-2">
+              <a href="saved.html" class="btn btn-outline-secondary btn-sm text-start"><i class="bi bi-bookmark me-2"></i>Saved places</a>
+              <a href="payments.html" class="btn btn-outline-secondary btn-sm text-start"><i class="bi bi-credit-card me-2"></i>Payment methods</a>
+              <a href="chat.html" class="btn btn-outline-secondary btn-sm text-start"><i class="bi bi-chat me-2"></i>Support chat</a>
+              <a href="tours.html" class="btn btn-outline-secondary btn-sm text-start"><i class="bi bi-compass me-2"></i>Tour packages</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/utils.js"></script>
+  <script>
+    if (!requireAuth('rider')) throw new Error('auth');
+
+    async function load() {
+      try {
+        const me = await Api.rider.me();
+        Api.setUser(me);
+        document.getElementById('userGreeting').textContent = 'Hi, ' + (me.fullName || me.name || 'Rider').split(' ')[0];
+      } catch (e) {
+        if (e.status === 401) { logout(); return; }
+      }
+
+      try {
+        const bal = await Api.rider.walletBalance();
+        document.getElementById('walletBal').textContent = formatMoney(bal.balance ?? bal.amount ?? bal);
+      } catch { document.getElementById('walletBal').textContent = 'TZS 0'; }
+
+      try {
+        const rides = await Api.rider.history();
+        const list = Array.isArray(rides) ? rides : (rides.rides || []);
+        const el = document.getElementById('recentRides');
+        if (!list.length) {
+          el.innerHTML = '<div class="text-center py-4 text-muted small">No rides yet. Book your first ride!</div>';
+          return;
+        }
+        el.innerHTML = list.slice(0, 5).map(r => `
+          <a href="ride.html?id=${r.id}" class="d-flex justify-content-between align-items-center px-3 py-3 border-bottom text-decoration-none text-dark">
+            <div>
+              <div class="fw-semibold small">${r.pickupAddress || r.pickup || 'Pickup'} → ${r.destinationAddress || r.destination || 'Drop-off'}</div>
+              <div class="text-muted" style="font-size:0.75rem">${formatDate(r.createdAt || r.created_at)} · ${r.rideType || r.type || ''}</div>
+            </div>
+            <div class="text-end">
+              <div class="fw-semibold small">${formatMoney(r.fare || r.totalFare || r.amount)}</div>
+              <span class="status-badge status-${(r.status||'').toLowerCase() === 'completed' ? 'online' : 'pending'}">${r.status || ''}</span>
+            </div>
+          </a>`).join('');
+      } catch (e) {
+        document.getElementById('recentRides').innerHTML = `<div class="text-center py-4 text-muted small">${e.message}</div>`;
+      }
+    }
+    load();
+  </script>
+</body>
+</html>
