@@ -4,7 +4,7 @@ const ZENJIGO_CONFIG = {
   API_BASE: localStorage.getItem('zenjigo_api_base') || 'http://localhost:5000/api/v1',
   APP_NAME: 'ZenjiGO',
   ORG_PHONE: '+255 676 891 227',
-  ORG_EMAIL: 'zenjigo@support.com',
+  ORG_EMAIL: 'support@zenjigo.online',
   ORG_INSTAGRAM: 'zenjigo',
   CURRENCY: 'TZS',
   DEMO_OTP: '1234', // Frontend hint only – backend validates real OTP
