@@ -13,9 +13,13 @@
   <div class="auth-page">
     <div class="auth-card">
       <div class="logo">Zenji<span>GO</span></div>
-      <p class="text-center text-muted mb-4">Rider sign in with phone OTP</p>
+      <p class="text-center text-muted mb-4">Rider sign in with email OTP</p>
 
       <div id="stepPhone">
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Email address</label>
+          <input type="email" id="email" class="form-control" placeholder="you@example.com" autocomplete="email" required>
+        </div>
         <div class="mb-3">
           <label class="form-label small fw-semibold">Phone number</label>
           <div class="input-group">
@@ -27,15 +31,6 @@
         <div class="mb-3">
           <label class="form-label small fw-semibold">Full name <span class="text-muted">(new users only)</span></label>
           <input type="text" id="fullName" class="form-control" placeholder="Optional for existing riders">
-        </div>
-        <div class="mb-3">
-          <label class="form-label small fw-semibold d-block">Send OTP via</label>
-          <div class="btn-group w-100" role="group">
-            <input type="radio" class="btn-check" name="channel" id="chSms" value="sms" checked>
-            <label class="btn btn-outline-secondary" for="chSms"><i class="bi bi-chat-dots me-1"></i>SMS</label>
-            <input type="radio" class="btn-check" name="channel" id="chWa" value="whatsapp">
-            <label class="btn btn-outline-secondary" for="chWa"><i class="bi bi-whatsapp me-1"></i>WhatsApp</label>
-          </div>
         </div>
         <button class="btn btn-primary-zenji" id="btnSendOtp" onclick="sendOtp()">Send OTP</button>
       </div>
@@ -50,7 +45,7 @@
         </div>
         <button class="btn btn-primary-zenji mb-2" id="btnVerify" onclick="verifyOtp()">Verify & Continue</button>
         <button class="btn btn-link w-100 text-muted" id="btnResend" onclick="sendOtp()" disabled>Resend OTP</button>
-        <button class="btn btn-link w-100 text-muted" onclick="backToPhone()">Change number</button>
+        <button class="btn btn-link w-100 text-muted" onclick="backToPhone()">Change details</button>
       </div>
 
       <hr class="my-4">
@@ -68,12 +63,10 @@
   <script>
     fillCountrySelect(document.getElementById('countryCode'), '+255');
     let currentPhone = '';
+    let currentEmail = '';
     let countdownTimer = null;
     let countdown = 0;
 
-    function getChannel() {
-      return document.querySelector('input[name="channel"]:checked')?.value || 'sms';
-    }
 
     function startCountdown(sec) {
       countdown = sec || 60;
@@ -96,19 +89,22 @@
     }
 
     async function sendOtp() {
+      const email = document.getElementById('email').value.trim().toLowerCase();
       const local = document.getElementById('phone').value.trim();
       const code = document.getElementById('countryCode').value;
-      if (!local || local.replace(/\D/g, '').length < 7) {
-        showToast('Enter a valid phone number', 'error');
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showToast('Enter a valid email address', 'error');
         return;
       }
       // Exact same as Flutter apps: countryCode + localNumber
       currentPhone = buildPhone(code, local);
+      currentEmail = email;
       const btn = document.getElementById('btnSendOtp');
       setLoading(btn, true);
       try {
-        await Api.auth.sendRiderOtp(currentPhone, getChannel());
-        document.getElementById('displayPhone').textContent = currentPhone;
+        const sent = await Api.auth.sendRiderOtp(currentPhone, currentEmail);
+        currentEmail = sent.target || currentEmail;
+        document.getElementById('displayPhone').textContent = sent.maskedEmail || currentEmail;
         document.getElementById('stepPhone').classList.add('d-none');
         document.getElementById('stepOtp').classList.remove('d-none');
         startCountdown(60);
@@ -130,7 +126,7 @@
       const btn = document.getElementById('btnVerify');
       setLoading(btn, true);
       try {
-        const data = await Api.auth.verifyRiderOtp(currentPhone, otp, fullName || undefined);
+        const data = await Api.auth.verifyRiderOtp(currentPhone, currentEmail, otp, fullName || undefined);
         const access = data.accessToken || data.access || (data.tokens && data.tokens.accessToken);
         const refresh = data.refreshToken || data.refresh || (data.tokens && data.tokens.refreshToken);
         if (access) Api.setTokens(access, refresh);

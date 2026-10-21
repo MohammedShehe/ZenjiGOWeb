@@ -87,3 +87,15 @@ zenjigo-web/
 - Map areas are placeholders; coordinates are sent to the real quote / create / track endpoints.
 
 © 2026 ZenjiGO
+
+
+## API endpoint configuration
+
+The website defaults to the same-origin `/api/v1` when hosted on a non-local domain, and to `http://localhost:5000/api/v1` for local development. If the website and API are hosted separately, set the exact reachable backend URL before using the API:
+
+```js
+localStorage.setItem('zenjigo_api_base', 'https://YOUR-BACKEND-HOST/api/v1');
+location.reload();
+```
+
+The backend must allow the website's exact origin in `CORS_ORIGINS`, and its `/health` endpoint should be reachable. Do not use `localhost` for a remotely hosted website because it points to the visitor's own computer.

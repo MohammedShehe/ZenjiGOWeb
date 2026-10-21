@@ -7,11 +7,24 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-  <link href="../css/style.css" rel="stylesheet">
+  <link href="../css/style.css" rel="stylesheet"><style>
+    .driver-registration-card{width:min(100% - 24px,900px);padding:clamp(20px,4vw,38px);border:1px solid var(--bs-border-color);box-shadow:0 18px 55px rgba(20,40,70,.10);border-radius:22px}
+    .document-section-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 0 6px;border-top:1px solid var(--bs-border-color)}
+    .section-kicker{display:block;font-size:.68rem;letter-spacing:.12em;font-weight:800;color:#16a085;margin-bottom:7px}
+    .document-count{white-space:nowrap;background:rgba(22,160,133,.12);color:#11856f;padding:7px 11px;border-radius:999px;font-size:.78rem;font-weight:700}
+    .upload-card{height:100%;padding:16px;border:1px solid var(--bs-border-color);border-radius:15px;background:var(--bs-tertiary-bg,rgba(120,130,150,.04));transition:border-color .2s,box-shadow .2s}
+    .upload-card:focus-within{border-color:#16a085;box-shadow:0 0 0 3px rgba(22,160,133,.12)}
+    .upload-card .form-control{font-size:.9rem}.file-preview{display:flex;align-items:center;gap:10px;min-height:58px;margin-top:12px;padding:9px 11px;border:1px dashed var(--bs-border-color);border-radius:11px;color:var(--bs-secondary-color);font-size:.82rem;overflow-wrap:anywhere}
+    .file-preview>i{font-size:1.35rem;color:#16a085;flex-shrink:0}.file-preview img{width:58px;height:58px;object-fit:cover;border-radius:8px;border:1px solid var(--bs-border-color)}.file-preview .preview-meta{min-width:0;display:flex;flex-direction:column;gap:3px}.preview-name{font-weight:650;color:var(--bs-emphasis-color);word-break:break-word}.preview-size{font-size:.75rem;color:var(--bs-secondary-color)}.preview-remove{margin-left:auto;border:0;background:transparent;color:#dc3545;padding:5px 8px;border-radius:8px}.preview-remove:hover{background:rgba(220,53,69,.1)}
+    .vehicle-preview-grid{display:flex;flex-wrap:wrap;gap:10px}.vehicle-preview-grid .vehicle-preview-item{display:flex;align-items:center;gap:8px;padding:6px;border:1px solid var(--bs-border-color);border-radius:10px}.vehicle-preview-item img{width:50px;height:50px}.vehicle-preview-item .preview-meta{max-width:170px}
+    #btnSubmit{min-height:48px;padding:12px 22px;border-radius:12px;font-weight:700}
+    @media(max-width:575px){.document-section-heading{align-items:flex-start;flex-direction:column}.upload-card{padding:13px}.driver-registration-card{width:calc(100% - 20px)}}
+  </style>
+
 </head>
 <body>
   <div class="auth-page" style="align-items:flex-start;padding-top:2rem;padding-bottom:2rem">
-    <div class="auth-card" style="max-width:560px">
+    <div class="auth-card driver-registration-card" style="max-width:900px">
       <div class="logo">Zenji<span>GO</span></div>
       <p class="text-center text-muted mb-4">Driver registration</p>
       <form id="regForm" onsubmit="submitReg(event)">
@@ -68,35 +81,55 @@
             <input name="modelYear" type="number" class="form-control" min="1990" max="2030">
           </div>
 
-          <div class="col-12"><hr class="my-1"><p class="small text-muted mb-2">Documents (required by backend)</p></div>
-          <div class="col-md-6">
-            <label class="form-label small">License</label>
-            <input type="file" name="license" class="form-control" accept="image/*,.pdf">
+          <div class="col-12 mt-4">
+            <div class="document-section-heading">
+              <div><span class="section-kicker">DOCUMENT VERIFICATION</span><h5 class="mb-1">Upload your documents</h5><p class="text-muted mb-0 small">Add clear, readable images or PDF files. Required documents are marked with *.</p></div>
+              <span class="document-count" id="documentCount">0 of 4 required</span>
+            </div>
           </div>
           <div class="col-md-6">
-            <label class="form-label small">National ID photo</label>
-            <input type="file" name="nationalIdFile" class="form-control" accept="image/*">
+            <div class="upload-card">
+              <label class="form-label fw-semibold" for="licenseFile">Driving license <span class="text-danger">*</span></label>
+              <input id="licenseFile" type="file" name="license" class="form-control document-input" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf" required data-preview="licensePreview">
+              <div class="form-text">JPG, PNG, WEBP or PDF · max size set by server</div><div class="file-preview" id="licensePreview"><i class="bi bi-cloud-arrow-up"></i><span>No file selected</span></div>
+            </div>
           </div>
           <div class="col-md-6">
-            <label class="form-label small">Insurance</label>
-            <input type="file" name="insurance" class="form-control" accept="image/*,.pdf">
+            <div class="upload-card">
+              <label class="form-label fw-semibold" for="nationalIdFile">National ID document <span class="text-danger">*</span></label>
+              <input id="nationalIdFile" type="file" name="nationalIdFile" class="form-control document-input" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf" required data-preview="nationalIdPreview">
+              <div class="form-text">Upload a clear photo or scan of your ID.</div><div class="file-preview" id="nationalIdPreview"><i class="bi bi-cloud-arrow-up"></i><span>No file selected</span></div>
+            </div>
           </div>
           <div class="col-md-6">
-            <label class="form-label small">Driver photo</label>
-            <input type="file" name="driverPhoto" class="form-control" accept="image/*">
+            <div class="upload-card">
+              <label class="form-label fw-semibold" for="insuranceFile">Vehicle insurance <span class="text-danger">*</span></label>
+              <input id="insuranceFile" type="file" name="insurance" class="form-control document-input" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf" required data-preview="insurancePreview">
+              <div class="form-text">Make sure the policy details are readable.</div><div class="file-preview" id="insurancePreview"><i class="bi bi-cloud-arrow-up"></i><span>No file selected</span></div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="upload-card">
+              <label class="form-label fw-semibold" for="driverPhotoFile">Driver portrait <span class="text-danger">*</span></label>
+              <input id="driverPhotoFile" type="file" name="driverPhoto" class="form-control document-input" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" required data-preview="driverPhotoPreview">
+              <div class="form-text">Use a clear, well-lit photo of your face.</div><div class="file-preview" id="driverPhotoPreview"><i class="bi bi-person-bounding-box"></i><span>No photo selected</span></div>
+            </div>
           </div>
           <div class="col-12">
-            <label class="form-label small">Vehicle photos</label>
-            <input type="file" name="vehiclePhotos" class="form-control" accept="image/*" multiple>
+            <div class="upload-card">
+              <label class="form-label fw-semibold" for="vehiclePhotosFile">Vehicle photos <span class="text-muted fw-normal">(optional, up to 5)</span></label>
+              <input id="vehiclePhotosFile" type="file" name="vehiclePhotos" class="form-control" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple>
+              <div class="form-text">Add photos of the vehicle from useful angles.</div><div class="file-preview vehicle-preview-grid" id="vehiclePhotosPreview"><i class="bi bi-images"></i><span>No vehicle photos selected</span></div>
+            </div>
           </div>
 
           <div class="col-12">
-            <label class="form-label small fw-semibold">Phone OTP code *</label>
+            <label class="form-label small fw-semibold">Email verification code *</label>
             <div class="input-group">
-              <input name="phoneOtpCode" class="form-control" required placeholder="Enter OTP sent to phone">
+              <input name="emailOtpCode" class="form-control" required placeholder="Enter OTP sent to your email">
               <button type="button" class="btn btn-outline-secondary" id="btnOtp" onclick="sendRegOtp()">Send OTP</button>
             </div>
-            <div class="form-text">OTP is sent to the phone above using purpose <code>driver_registration</code> (same as app).</div>
+            <div class="form-text">A verification code will be sent to the email address entered above.</div>
           </div>
 
           <div class="col-12">
@@ -113,22 +146,72 @@
   <script src="../js/api.js"></script>
   <script src="../js/utils.js"></script>
   <script>
+    // Live document previews; object URLs are revoked when replaced/removed.
+    const previewUrls = new Map();
+    const requiredDocInputs = Array.from(document.querySelectorAll('.document-input[required]'));
+    function updateDocumentCount() {
+      const count = requiredDocInputs.filter(input => input.files && input.files.length).length;
+      document.getElementById('documentCount').textContent = count + ' of ' + requiredDocInputs.length + ' required';
+    }
+    function bytesLabel(bytes) {
+      return bytes < 1024 * 1024 ? (bytes / 1024).toFixed(0) + ' KB' : (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+    function renderFilePreview(input) {
+      const target = document.getElementById(input.dataset.preview);
+      if (previewUrls.has(input.id)) { URL.revokeObjectURL(previewUrls.get(input.id)); previewUrls.delete(input.id); }
+      target.replaceChildren();
+      const files = Array.from(input.files || []);
+      if (!files.length) {
+        const icon = document.createElement('i'); icon.className = input.multiple ? 'bi bi-images' : 'bi bi-cloud-arrow-up';
+        const label = document.createElement('span'); label.textContent = input.multiple ? 'No vehicle photos selected' : 'No file selected';
+        target.append(icon, label); updateDocumentCount(); return;
+      }
+      if (input.multiple) {
+        files.forEach((file, index) => {
+          const item = document.createElement('div'); item.className = 'vehicle-preview-item';
+          if (file.type.startsWith('image/')) { const img = document.createElement('img'); const url = URL.createObjectURL(file); img.src = url; img.alt = 'Vehicle photo ' + (index + 1); item.append(img); }
+          else { const icon = document.createElement('i'); icon.className = 'bi bi-file-earmark-image'; item.append(icon); }
+          const meta = document.createElement('div'); meta.className = 'preview-meta';
+          const name = document.createElement('span'); name.className = 'preview-name'; name.textContent = file.name;
+          const size = document.createElement('span'); size.className = 'preview-size'; size.textContent = bytesLabel(file.size);
+          meta.append(name,size); item.append(meta); target.append(item);
+        });
+      } else {
+        const file = files[0];
+        if (file.type.startsWith('image/')) { const img = document.createElement('img'); const url = URL.createObjectURL(file); previewUrls.set(input.id,url); img.src=url; img.alt='Selected document preview'; target.append(img); }
+        else { const icon = document.createElement('i'); icon.className='bi bi-file-earmark-pdf'; target.append(icon); }
+        const meta = document.createElement('div'); meta.className='preview-meta';
+        const name = document.createElement('span'); name.className='preview-name'; name.textContent=file.name;
+        const size = document.createElement('span'); size.className='preview-size'; size.textContent=(file.type==='application/pdf'?'PDF document · ':'Image · ')+bytesLabel(file.size);
+        meta.append(name,size); target.append(meta);
+        const remove = document.createElement('button'); remove.type='button'; remove.className='preview-remove'; remove.title='Remove file'; remove.setAttribute('aria-label','Remove '+file.name); remove.innerHTML='<i class="bi bi-x-lg"></i>';
+        remove.addEventListener('click',()=>{input.value='';renderFilePreview(input);}); target.append(remove);
+      }
+      updateDocumentCount();
+    }
+    document.querySelectorAll('input[type="file"][data-preview]').forEach(input => input.addEventListener('change', () => {
+      if (input.multiple && input.files.length > 5) {
+        showToast('Please select no more than 5 vehicle photos.', 'error');
+        const dt = new DataTransfer(); Array.from(input.files).slice(0,5).forEach(f=>dt.items.add(f)); input.files=dt.files;
+      }
+      renderFilePreview(input);
+    }));
+    updateDocumentCount();
+
     fillCountrySelect(document.getElementById('countryCode'), '+255');
 
     async function sendRegOtp() {
-      const local = document.getElementById('phoneLocal').value.trim();
-      const code = document.getElementById('countryCode').value;
-      if (!local || local.replace(/\D/g, '').length < 7) {
-        showToast('Enter phone first', 'error');
+      const email = document.querySelector('[name="email"]').value.trim().toLowerCase();
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showToast('Enter a valid email address first', 'error');
         return;
       }
-      const phone = buildPhone(code, local);
       const btn = document.getElementById('btnOtp');
       setLoading(btn, true);
       try {
         // Same as Flutter: purpose = driver_registration
-        await Api.auth.sendDriverOtp(phone, 'driver_registration');
-        showToast('OTP sent for registration to ' + phone);
+        await Api.auth.sendDriverRegistrationOtp(email);
+        showToast('Verification code sent to ' + email);
       } catch (e) {
         showToast(e.message || 'Failed to send OTP', 'error');
       } finally {
@@ -155,16 +238,30 @@
         vehicleModel: form.vehicleModel.value.trim(),
         vehicleColor: form.vehicleColor.value.trim(),
         modelYear: form.modelYear.value || '',
-        phoneOtpCode: form.phoneOtpCode.value.trim()
+        emailOtpCode: form.emailOtpCode.value.trim()
       };
 
       const files = {
-        license: form.license.files[0],
-        nationalId: form.nationalIdFile.files[0] ? [form.nationalIdFile.files[0]] : [],
-        insurance: form.insurance.files[0],
-        driverPhoto: form.driverPhoto.files[0],
-        vehiclePhotos: Array.from(form.vehiclePhotos.files)
+        license: form.elements.namedItem('license').files[0],
+        nationalIdFile: form.elements.namedItem('nationalIdFile').files[0],
+        insurance: form.elements.namedItem('insurance').files[0],
+        driverPhoto: form.elements.namedItem('driverPhoto').files[0],
+        vehiclePhotos: Array.from(form.elements.namedItem('vehiclePhotos').files).slice(0, 5)
       };
+
+      const missing = [
+        ['license', 'Driving license'],
+        ['nationalIdFile', 'National ID document'],
+        ['insurance', 'Vehicle insurance'],
+        ['driverPhoto', 'Driver portrait']
+      ].filter(([name]) => !form.elements.namedItem(name).files.length);
+      if (missing.length) {
+        showToast('Please attach: ' + missing.map(item => item[1]).join(', '), 'error');
+        const firstMissing = form.elements.namedItem(missing[0][0]);
+        firstMissing.focus();
+        firstMissing.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
 
       const btn = document.getElementById('btnSubmit');
       setLoading(btn, true);

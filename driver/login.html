@@ -13,9 +13,13 @@
   <div class="auth-page">
     <div class="auth-card">
       <div class="logo">Zenji<span>GO</span></div>
-      <p class="text-center text-muted mb-4">Driver sign in with phone OTP</p>
+      <p class="text-center text-muted mb-4">Driver sign in with email OTP</p>
 
       <div id="stepPhone">
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Email address</label>
+          <input type="email" id="email" class="form-control" placeholder="you@example.com" autocomplete="email" required>
+        </div>
         <div class="mb-3">
           <label class="form-label small fw-semibold">Phone number</label>
           <div class="input-group">
@@ -37,7 +41,7 @@
         </div>
         <button class="btn btn-primary-zenji mb-2" id="btnVerify" onclick="verify()">Verify & Continue</button>
         <button class="btn btn-link w-100 text-muted" id="btnResend" onclick="sendOtp()" disabled>Resend OTP</button>
-        <button class="btn btn-link w-100 text-muted" onclick="backToPhone()">Change number</button>
+        <button class="btn btn-link w-100 text-muted" onclick="backToPhone()">Change details</button>
       </div>
 
       <hr class="my-4">
@@ -55,6 +59,7 @@
   <script>
     fillCountrySelect(document.getElementById('countryCode'), '+255');
     let currentPhone = '';
+    let currentEmail = '';
     let countdownTimer = null;
     let countdown = 0;
 
@@ -79,19 +84,22 @@
     }
 
     async function sendOtp() {
+      const email = document.getElementById('email').value.trim().toLowerCase();
       const local = document.getElementById('phone').value.trim();
       const code = document.getElementById('countryCode').value;
-      if (!local || local.replace(/\D/g, '').length < 7) {
-        showToast('Enter a valid phone number', 'error');
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showToast('Enter a valid email address', 'error');
         return;
       }
       // Exact same as Flutter driver app: countryCode + localNumber
       currentPhone = buildPhone(code, local);
+      currentEmail = email;
       const btn = document.getElementById('btnSend');
       setLoading(btn, true);
       try {
-        await Api.auth.sendDriverOtp(currentPhone, 'login');
-        document.getElementById('displayPhone').textContent = currentPhone;
+        const sent = await Api.auth.sendDriverOtp(currentPhone, currentEmail, 'login');
+        currentEmail = sent.target || currentEmail;
+        document.getElementById('displayPhone').textContent = sent.maskedEmail || currentEmail;
         document.getElementById('stepPhone').classList.add('d-none');
         document.getElementById('stepOtp').classList.remove('d-none');
         startCountdown(60);
@@ -112,7 +120,7 @@
       const btn = document.getElementById('btnVerify');
       setLoading(btn, true);
       try {
-        const data = await Api.auth.loginDriver(currentPhone, otp);
+        const data = await Api.auth.loginDriver(currentPhone, currentEmail, otp);
         const access = data.accessToken || data.access || (data.tokens && data.tokens.accessToken);
         const refresh = data.refreshToken || data.refresh || (data.tokens && data.tokens.refreshToken);
         if (access) Api.setTokens(access, refresh);

@@ -49,13 +49,20 @@ const Api = (() => {
       opts.body = isForm ? body : JSON.stringify(body);
     }
 
-    let res = await fetch(`${ZENJIGO_CONFIG.API_BASE}${path}`, opts);
+    let res;
+    try {
+      res = await fetch(`${ZENJIGO_CONFIG.API_BASE}${path}`, opts);
+    } catch (cause) {
+      const err = new Error(`Cannot reach ZenjiGO API at ${ZENJIGO_CONFIG.API_BASE}. Check the backend URL, backend availability, HTTPS configuration, and CORS allowlist.`);
+      err.cause = cause;
+      throw err;
+    }
 
     if (res.status === 401 && auth) {
       if (await tryRefresh()) {
         const { access } = getTokens();
         if (access) headers['Authorization'] = `Bearer ${access}`;
-        res = await fetch(`${ZENJIGO_CONFIG.API_BASE}${path}`, opts);
+        try { res = await fetch(`${ZENJIGO_CONFIG.API_BASE}${path}`, opts); } catch (cause) { const err = new Error(`Cannot reach ZenjiGO API at ${ZENJIGO_CONFIG.API_BASE}. Check backend availability and CORS settings.`); err.cause = cause; throw err; }
       }
     }
 
@@ -81,17 +88,19 @@ const Api = (() => {
 
   /* ===================== AUTH ===================== */
   const auth = {
-    sendRiderOtp: (phone, channel = 'sms') =>
-      data('POST', '/auth/rider/send-otp', { body: { phone, channel }, auth: false }),
-    verifyRiderOtp: (phone, code, fullName) =>
+    sendRiderOtp: (phone, email) =>
+      data('POST', '/auth/rider/send-otp', { body: { phone, email }, auth: false }),
+    verifyRiderOtp: (phone, email, code, fullName) =>
       data('POST', '/auth/rider/verify-otp', {
-        body: { phone, code, ...(fullName ? { fullName } : {}) },
+        body: { phone, email, code, ...(fullName ? { fullName } : {}) },
         auth: false
       }),
-    sendDriverOtp: (phone, purpose = 'login') =>
-      data('POST', '/auth/driver/send-otp', { body: { phone, purpose }, auth: false }),
-    loginDriver: (phone, code) =>
-      data('POST', '/auth/driver/login', { body: { phone, code }, auth: false }),
+    sendDriverOtp: (phone, email, purpose = 'login') =>
+      data('POST', '/auth/driver/send-otp', { body: { phone, email, purpose }, auth: false }),
+    sendDriverRegistrationOtp: (email) =>
+      data('POST', '/auth/driver/send-email-otp', { body: { email, purpose: 'driver_registration' }, auth: false }),
+    loginDriver: (phone, email, code) =>
+      data('POST', '/auth/driver/login', { body: { phone, email, code }, auth: false }),
     refresh: (refreshToken) =>
       data('POST', '/auth/refresh', { body: { refreshToken }, auth: false }),
     logout: () => request('POST', '/auth/logout').finally(clearTokens)

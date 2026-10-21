@@ -1,7 +1,21 @@
 // ZenjiGO Web - Configuration
 // Change API_BASE to your deployed backend URL when ready.
 const ZENJIGO_CONFIG = {
-  API_BASE: localStorage.getItem('zenjigo_api_base') || 'http://localhost:5000/api/v1',
+  API_BASE: (function () {
+    const saved = (localStorage.getItem('zenjigo_api_base') || '').trim();
+    // Local frontend servers (Live Server/Vite/etc.) usually run on a different
+    // port than the API. Do not accidentally call <frontend-origin>/api/v1.
+    const isLocalHost = ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
+    const defaultBase = isLocalHost || location.protocol === 'file:'
+      ? 'http://localhost:5000/api/v1'
+      : location.origin + '/api/v1';
+    const candidate = saved || defaultBase;
+    try {
+      const parsed = new URL(candidate);
+      if (!['http:', 'https:'].includes(parsed.protocol)) return defaultBase;
+      return parsed.href.replace(/\/$/, '');
+    } catch (_) { return defaultBase; }
+  })(),
   APP_NAME: 'ZenjiGO',
   ORG_PHONE: '+255 676 891 227',
   ORG_EMAIL: 'support@zenjigo.online',
@@ -29,6 +43,10 @@ const ZENJIGO_CONFIG = {
 
 // Persist API base override
 function setApiBase(url) {
-  localStorage.setItem('zenjigo_api_base', url);
-  ZENJIGO_CONFIG.API_BASE = url;
+  const parsed = new URL(String(url || '').trim());
+  if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('API URL must start with http:// or https://');
+  const normalized = parsed.href.replace(/\/$/, '');
+  localStorage.setItem('zenjigo_api_base', normalized);
+  ZENJIGO_CONFIG.API_BASE = normalized;
+  return normalized;
 }
