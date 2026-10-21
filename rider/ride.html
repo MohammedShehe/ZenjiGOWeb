@@ -143,8 +143,10 @@
   if (!window.ZenjiMap) return;
   const center = (window.ZENJIGO_CONFIG && window.ZENJIGO_CONFIG.MAP && window.ZENJIGO_CONFIG.MAP.DEFAULT_CENTER) || { lat: -6.1659, lng: 39.2026 };
   try {
-    window.__rideMap = await ZenjiMap.createMap('mapBox', { center, zoom: 13, markers: [] });
-  } catch (e) { console.warn('Map init', e); }
+    window.__rideMap = await ZenjiMap.createMap('mapBox', { center, zoom: 14, markers: [] });
+  } catch (e) {
+    console.warn('Map', e.message || e);
+  }
 })();
 </script>
 

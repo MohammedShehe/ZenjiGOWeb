@@ -66,7 +66,7 @@
           <div class="mb-3">
             <label class="form-label small fw-semibold">Mobile money phone</label>
             <input type="tel" id="topupPhone" class="form-control" placeholder="255712345678" inputmode="tel">
-            <div class="form-text">PayGrid will send a payment prompt to this number. Include country code (255).</div>
+            <div class="form-text">You will receive a mobile money prompt on this number.</div>
           </div>
           <div class="mb-3">
             <label class="form-label small fw-semibold">Payment method</label>
@@ -128,7 +128,7 @@
       setLoading(btn, true);
       try {
         const res = await Api.rider.topUp(amount, method, phone);
-        const msg = (res && (res.message || res.status === 'success' ? 'Wallet will be credited after payment confirmation.' : null)) || 'Top-up initiated. Confirm the prompt on your phone.';
+        const msg = (res && (res.message || res.status === 'success' ? 'Wallet will be credited after payment confirmation.' : null)) || 'Top-up initiated. Confirm on your phone.';
         showToast(msg);
         bootstrap.Modal.getInstance(document.getElementById('topupModal')).hide();
         // Poll a few times in case webhook is fast

@@ -37,7 +37,7 @@
           <div class="card-zenji p-4">
             <div class="mb-3">
               <label class="form-label small fw-semibold">Pickup address</label>
-              <input type="text" id="pickupAddress" class="form-control" placeholder="e.g. Stone Town, Forodhani">
+              <input type="text" id="pickupAddress" class="form-control" placeholder="Search pickup location">
             </div>
             <div class="row g-2 mb-3">
               <div class="col-6">
@@ -51,7 +51,7 @@
             </div>
             <div class="mb-3">
               <label class="form-label small fw-semibold">Destination address</label>
-              <input type="text" id="destAddress" class="form-control" placeholder="e.g. Nungwi Beach">
+              <input type="text" id="destAddress" class="form-control" placeholder="Search destination">
             </div>
             <div class="row g-2 mb-3">
               <div class="col-6">
@@ -93,7 +93,7 @@
         </div>
         <div class="col-lg-6">
           <div id="bookingMap" class="mb-3 rounded-3 overflow-hidden border" style="height:320px;min-height:280px;background:#e8f4f3;"></div>
-          <p class="small text-muted mb-0"><i class="bi bi-info-circle me-1"></i>Drag the pickup marker or edit coordinates. Map uses OpenStreetMap by default — switch to Google Maps in <code>js/config.js</code>.</p>
+
           <div class="card-zenji p-3">
             <p class="small text-muted mb-0">
               <i class="bi bi-info-circle me-1"></i>
@@ -198,45 +198,72 @@
 <script>
 (async function initBookingMap() {
   if (!window.ZenjiMap) return;
-  const pickupLat = () => Number(document.getElementById('pickupLat')?.value || -6.1659);
-  const pickupLng = () => Number(document.getElementById('pickupLng')?.value || 39.2026);
-  const destLat = () => Number(document.getElementById('destLat')?.value || -5.7265);
-  const destLng = () => Number(document.getElementById('destLng')?.value || 39.2946);
+  const $ = (id) => document.getElementById(id);
+  const pickupLat = () => Number($('pickupLat')?.value || -6.1659);
+  const pickupLng = () => Number($('pickupLng')?.value || 39.2026);
+  const destLat = () => Number($('destLat')?.value || -5.7265);
+  const destLng = () => Number($('destLng')?.value || 39.2946);
 
-  const api = await ZenjiMap.createMap('bookingMap', {
-    center: { lat: pickupLat(), lng: pickupLng() },
-    zoom: 12,
-    markers: [
-      { id: 'pickup', lat: pickupLat(), lng: pickupLng(), label: 'Pickup', draggable: true },
-      { id: 'dest', lat: destLat(), lng: destLng(), label: 'Destination', draggable: true }
-    ],
-    onMarkerDrag({ lat, lng, id }) {
-      if (id === 'pickup') {
-        const la = document.getElementById('pickupLat');
-        const ln = document.getElementById('pickupLng');
-        if (la) la.value = lat.toFixed(6);
-        if (ln) ln.value = lng.toFixed(6);
-      } else if (id === 'dest') {
-        const la = document.getElementById('destLat');
-        const ln = document.getElementById('destLng');
-        if (la) la.value = lat.toFixed(6);
-        if (ln) ln.value = lng.toFixed(6);
-      }
+  function refreshMarkers() {
+    if (!window.__bookingMap) return;
+    window.__bookingMap.setMarkers([
+      { id: 'pickup', lat: pickupLat(), lng: pickupLng(), label: 'P', draggable: true },
+      { id: 'dest', lat: destLat(), lng: destLng(), label: 'D', draggable: true }
+    ]);
+  }
+
+  try {
+    // Prefer current location for map center
+    const here = await ZenjiMap.getCurrentPosition(6000);
+    const center = here || { lat: pickupLat(), lng: pickupLng() };
+    if (here && $('pickupLat') && !$('pickupLat').dataset.userSet) {
+      $('pickupLat').value = here.lat.toFixed(6);
+      $('pickupLng').value = here.lng.toFixed(6);
     }
-  });
-  window.__bookingMap = api;
 
-  ['pickupLat','pickupLng','destLat','destLng'].forEach((id) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener('change', () => {
-      api.setMarkers([
-        { id: 'pickup', lat: pickupLat(), lng: pickupLng(), label: 'Pickup', draggable: true },
-        { id: 'dest', lat: destLat(), lng: destLng(), label: 'Destination', draggable: true }
-      ]);
-      api.setCenter({ lat: pickupLat(), lng: pickupLng() });
+    window.__bookingMap = await ZenjiMap.createMap('bookingMap', {
+      center,
+      zoom: 14,
+      markers: [
+        { id: 'pickup', lat: pickupLat(), lng: pickupLng(), label: 'P', draggable: true },
+        { id: 'dest', lat: destLat(), lng: destLng(), label: 'D', draggable: true }
+      ],
+      onMarkerDrag({ lat, lng, id }) {
+        if (id === 'pickup') {
+          $('pickupLat').value = lat.toFixed(6);
+          $('pickupLng').value = lng.toFixed(6);
+          $('pickupLat').dataset.userSet = '1';
+        } else if (id === 'dest') {
+          $('destLat').value = lat.toFixed(6);
+          $('destLng').value = lng.toFixed(6);
+        }
+      }
     });
-  });
+
+    // Places search → fill address + coordinates
+    if ($('pickupAddress')) {
+      await ZenjiMap.attachAutocomplete($('pickupAddress'), (place) => {
+        $('pickupAddress').value = place.address;
+        $('pickupLat').value = place.lat.toFixed(6);
+        $('pickupLng').value = place.lng.toFixed(6);
+        $('pickupLat').dataset.userSet = '1';
+        refreshMarkers();
+        window.__bookingMap.setCenter({ lat: place.lat, lng: place.lng }, 15);
+      }, { country: (ZENJIGO_CONFIG.MAP && ZENJIGO_CONFIG.MAP.COUNTRY) || 'tz' });
+    }
+    if ($('destAddress')) {
+      await ZenjiMap.attachAutocomplete($('destAddress'), (place) => {
+        $('destAddress').value = place.address;
+        $('destLat').value = place.lat.toFixed(6);
+        $('destLng').value = place.lng.toFixed(6);
+        refreshMarkers();
+      }, { country: (ZENJIGO_CONFIG.MAP && ZENJIGO_CONFIG.MAP.COUNTRY) || 'tz' });
+    }
+  } catch (e) {
+    console.warn('Map:', e.message || e);
+    const box = $('bookingMap');
+    if (box) box.innerHTML = '<div class="p-4 text-center text-muted small">Map unavailable. Set GOOGLE_MAPS_API_KEY in js/config.js (Maps JavaScript API + Places).</div>';
+  }
 })();
 </script>
 

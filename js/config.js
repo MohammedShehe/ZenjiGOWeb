@@ -21,7 +21,7 @@ const ZENJIGO_CONFIG = {
   ORG_EMAIL: 'support@zenjigo.online',
   ORG_INSTAGRAM: 'zenjigo',
   CURRENCY: 'TZS',
-  DEMO_OTP: '1234', // Frontend hint only – backend validates real OTP
+  
   RIDE_TYPES: [
     { id: 'boda', name: 'Boda', nameSw: 'Boda', icon: 'bi-bicycle', baseFare: 1500, perKm: 400 },
     { id: 'bajaji', name: 'Bajaji', nameSw: 'Bajaji', icon: 'bi-scooter', baseFare: 2500, perKm: 600 },
@@ -48,12 +48,12 @@ const ZENJIGO_CONFIG = {
    *   3. Enable Maps JavaScript API + Places API in Google Cloud Console
    */
   MAP: {
-    PROVIDER: 'leaflet', // 'leaflet' | 'google'
-    GOOGLE_MAPS_API_KEY: '', // paste your Google Maps JS API key here when switching
-    DEFAULT_CENTER: { lat: -6.1659, lng: 39.2026 }, // Stone Town, Zanzibar
-    DEFAULT_ZOOM: 13,
-    TILE_URL: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    TILE_ATTRIBUTION: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    PROVIDER: 'google',
+    // Paste your Google Maps JavaScript API key (Maps JS + Places enabled)
+    GOOGLE_MAPS_API_KEY: 'AIzaSyD2_9WpUt3D0SlOJTMKY5kK_omBZ0tUhC4',
+    DEFAULT_CENTER: { lat: -6.1659, lng: 39.2026 },
+    DEFAULT_ZOOM: 14,
+    COUNTRY: 'tz'
   }
 };
 
