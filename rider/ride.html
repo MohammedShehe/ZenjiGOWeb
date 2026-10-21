@@ -75,7 +75,7 @@
         const ride = await Api.rider.getRide(id);
         render(ride);
         const st = (ride.status || '').toLowerCase();
-        if (['requested','accepted','arriving','arrived','started'].includes(st)) {
+        if (['searching','requested','accepted','arriving','arrived','started'].includes(st)) {
           try {
             const track = await Api.rider.track(id);
             if (track.driverLat) {
@@ -106,8 +106,9 @@
       const actions = document.getElementById('actions');
       document.getElementById('actionsBox').style.display = 'block';
       let html = '';
-      if (['requested','accepted','arriving','arrived'].includes(st)) {
+      if (['searching','requested','accepted','arriving','arrived'].includes(st)) {
         html += '<button class="btn btn-outline-danger" onclick="cancelRide()">Cancel ride</button>';
+        html += '<p class="small text-muted mt-2 mb-0" id="cancelFeeHint"><i class="bi bi-info-circle me-1"></i>Cancellation near pickup or after the driver has accepted may incur a fee (per platform policy).</p>';
       }
       if (st === 'completed' && !r.rating) {
         document.getElementById('rateBox').classList.remove('d-none');
@@ -116,12 +117,32 @@
       actions.innerHTML = html;
     }
     async function cancelRide() {
-      if (!confirm('Cancel this ride?')) return;
+      let feeNote = '';
+      let preview = null;
       try {
-        await Api.rider.cancelRide(id, 'Changed mind');
-        showToast('Ride cancelled');
+        if (Api.rider.cancelPreview) preview = await Api.rider.cancelPreview(id);
+      } catch (_) {}
+      const fee = preview && (preview.cancellationFee ?? preview.fee ?? preview.charge);
+      if (fee != null && Number(fee) > 0) {
+        feeNote = '\n\nEstimated cancellation charge: ' + formatMoney(fee) +
+          (preview.reason ? '\n(' + preview.reason + ')' : '') +
+          '\nThis may be deducted from your wallet or next ride.';
+      } else {
+        feeNote = '\n\nNote: Cancelling after a driver accepts or when the driver is nearby may incur a charge according to ZenjiGO policy.';
+      }
+      if (!confirm('Cancel this ride?' + feeNote)) return;
+      try {
+        const result = await Api.rider.cancelRide(id, 'Changed mind');
+        const charged = result && (result.cancellationFee ?? result.fee ?? result.charge ?? result.amountCharged);
+        if (charged != null && Number(charged) > 0) {
+          showToast('Ride cancelled. Fee charged: ' + formatMoney(charged));
+        } else {
+          showToast('Ride cancelled' + (result && result.message ? ': ' + result.message : ''));
+        }
         load();
-      } catch (e) { showToast(e.message, 'error'); }
+      } catch (e) {
+        showToast(e.message || 'Could not cancel ride', 'error');
+      }
     }
     async function submitRating() {
       const stars = parseInt(document.getElementById('stars').value, 10);

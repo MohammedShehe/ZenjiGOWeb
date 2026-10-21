@@ -37,7 +37,13 @@
           <div class="card-zenji p-4">
             <div class="mb-3">
               <label class="form-label small fw-semibold">Pickup address</label>
-              <input type="text" id="pickupAddress" class="form-control" placeholder="Search pickup location">
+              <div class="input-group">
+                <input type="text" id="pickupAddress" class="form-control" placeholder="Search or use current location" autocomplete="off">
+                <button type="button" class="btn btn-outline-secondary" id="btnUseMyLocation" title="Use my current location" onclick="useMyLocation()">
+                  <i class="bi bi-geo-alt-fill text-teal"></i>
+                </button>
+              </div>
+              <div class="form-text small">Suggestions appear as you type. Tap the pin to use your current location.</div>
             </div>
             <div class="row g-2 mb-3">
               <div class="col-6">
@@ -51,7 +57,8 @@
             </div>
             <div class="mb-3">
               <label class="form-label small fw-semibold">Destination address</label>
-              <input type="text" id="destAddress" class="form-control" placeholder="Search destination">
+              <input type="text" id="destAddress" class="form-control" placeholder="Search destination" autocomplete="off">
+              <div class="form-text small">Type to see place suggestions (Zanzibar).</div>
             </div>
             <div class="row g-2 mb-3">
               <div class="col-6">
@@ -95,10 +102,14 @@
           <div id="bookingMap" class="mb-3 rounded-3 overflow-hidden border" style="height:320px;min-height:280px;background:#e8f4f3;"></div>
 
           <div class="card-zenji p-3">
-            <p class="small text-muted mb-0">
+            <p class="small text-muted mb-2">
               <i class="bi bi-info-circle me-1"></i>
-              Enter realistic coordinates for Zanzibar (approx. lat -6.1 to -5.7, lng 39.1 to 39.5).
-              The backend calculates distance and fare from these points.
+              Type to get place suggestions, or use the pin button for your current location.
+              Online drivers appear on the map when available.
+            </p>
+            <p class="small text-muted mb-0">
+              <i class="bi bi-car-front me-1"></i>
+              Teal markers = online drivers near your pickup.
             </p>
           </div>
         </div>
@@ -196,74 +207,157 @@
   <script src="../js/map.js"></script>
 
 <script>
-(async function initBookingMap() {
-  if (!window.ZenjiMap) return;
+(function () {
   const $ = (id) => document.getElementById(id);
-  const pickupLat = () => Number($('pickupLat')?.value || -6.1659);
-  const pickupLng = () => Number($('pickupLng')?.value || 39.2026);
-  const destLat = () => Number($('destLat')?.value || -5.7265);
-  const destLng = () => Number($('destLng')?.value || 39.2946);
+  let driverMarkers = [];
+  let driversPollTimer = null;
+
+  function pickupLat() { return Number($('pickupLat')?.value || -6.1659); }
+  function pickupLng() { return Number($('pickupLng')?.value || 39.2026); }
+  function destLat() { return Number($('destLat')?.value || -5.7265); }
+  function destLng() { return Number($('destLng')?.value || 39.2946); }
+
+  function buildCoreMarkers() {
+    return [
+      { id: 'pickup', lat: pickupLat(), lng: pickupLng(), label: 'P', title: 'Pickup', draggable: true },
+      { id: 'dest', lat: destLat(), lng: destLng(), label: 'D', title: 'Destination', draggable: true }
+    ];
+  }
 
   function refreshMarkers() {
     if (!window.__bookingMap) return;
-    window.__bookingMap.setMarkers([
-      { id: 'pickup', lat: pickupLat(), lng: pickupLng(), label: 'P', draggable: true },
-      { id: 'dest', lat: destLat(), lng: destLng(), label: 'D', draggable: true }
-    ]);
+    const core = buildCoreMarkers();
+    const all = core.concat(driverMarkers);
+    window.__bookingMap.setMarkers(all, { fitBounds: false });
   }
 
-  try {
-    // Prefer current location for map center
-    const here = await ZenjiMap.getCurrentPosition(6000);
-    const center = here || { lat: pickupLat(), lng: pickupLng() };
-    if (here && $('pickupLat') && !$('pickupLat').dataset.userSet) {
+  async function loadOnlineDrivers() {
+    if (!window.Api || !Api.rider || !Api.rider.nearbyDrivers) return;
+    try {
+      const lat = pickupLat();
+      const lng = pickupLng();
+      const list = await Api.rider.nearbyDrivers(lat, lng, 8);
+      const arr = Array.isArray(list) ? list : (list?.drivers || list?.data || []);
+      let icon = null;
+      try {
+        if (window.google && google.maps && ZenjiMap.driverIcon) icon = ZenjiMap.driverIcon('#0d9488');
+      } catch (_) {}
+      driverMarkers = arr
+        .filter((d) => d && (d.lat != null || d.latitude != null))
+        .map((d, i) => ({
+          id: 'drv-' + (d.id || i),
+          lat: Number(d.lat ?? d.latitude),
+          lng: Number(d.lng ?? d.longitude),
+          title: (d.fullName || d.name || 'Driver') + (d.vehicleType ? ' · ' + d.vehicleType : ''),
+          icon: icon || undefined,
+          label: icon ? undefined : '🚗',
+          info: '<div class="small"><strong>' + (d.fullName || d.name || 'Online driver') + '</strong><br>' +
+            (d.vehicleType || d.rideType || '') + (d.plateNumber ? ' · ' + d.plateNumber : '') + '</div>'
+        }));
+      refreshMarkers();
+    } catch (e) {
+      // Backend may not expose nearby yet — keep map usable
+      console.warn('Nearby drivers:', e.message || e);
+    }
+  }
+
+  window.useMyLocation = async function useMyLocation() {
+    const btn = $('btnUseMyLocation');
+    if (btn) btn.disabled = true;
+    try {
+      const here = await ZenjiMap.getCurrentPosition(10000);
+      if (!here) {
+        showToast('Could not get your location. Check browser permissions.', 'error');
+        return;
+      }
       $('pickupLat').value = here.lat.toFixed(6);
       $('pickupLng').value = here.lng.toFixed(6);
-    }
-
-    window.__bookingMap = await ZenjiMap.createMap('bookingMap', {
-      center,
-      zoom: 14,
-      markers: [
-        { id: 'pickup', lat: pickupLat(), lng: pickupLng(), label: 'P', draggable: true },
-        { id: 'dest', lat: destLat(), lng: destLng(), label: 'D', draggable: true }
-      ],
-      onMarkerDrag({ lat, lng, id }) {
-        if (id === 'pickup') {
-          $('pickupLat').value = lat.toFixed(6);
-          $('pickupLng').value = lng.toFixed(6);
-          $('pickupLat').dataset.userSet = '1';
-        } else if (id === 'dest') {
-          $('destLat').value = lat.toFixed(6);
-          $('destLng').value = lng.toFixed(6);
-        }
+      $('pickupLat').dataset.userSet = '1';
+      let address = null;
+      try {
+        address = await ZenjiMap.reverseGeocode(here.lat, here.lng);
+      } catch (_) {}
+      if (address) $('pickupAddress').value = address;
+      else if (!$('pickupAddress').value) $('pickupAddress').value = 'Current location';
+      if (window.__bookingMap) {
+        window.__bookingMap.setCenter(here, 15);
+        refreshMarkers();
       }
-    });
+      loadOnlineDrivers();
+      showToast('Pickup set to your current location');
+    } catch (e) {
+      showToast(e.message || 'Location failed', 'error');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  };
 
-    // Places search → fill address + coordinates
-    if ($('pickupAddress')) {
-      await ZenjiMap.attachAutocomplete($('pickupAddress'), (place) => {
-        $('pickupAddress').value = place.address;
-        $('pickupLat').value = place.lat.toFixed(6);
-        $('pickupLng').value = place.lng.toFixed(6);
-        $('pickupLat').dataset.userSet = '1';
-        refreshMarkers();
-        window.__bookingMap.setCenter({ lat: place.lat, lng: place.lng }, 15);
-      }, { country: (ZENJIGO_CONFIG.MAP && ZENJIGO_CONFIG.MAP.COUNTRY) || 'tz' });
+  (async function initBookingMap() {
+    if (!window.ZenjiMap) return;
+    try {
+      const here = await ZenjiMap.getCurrentPosition(6000);
+      const center = here || { lat: pickupLat(), lng: pickupLng() };
+      if (here && $('pickupLat') && !$('pickupLat').dataset.userSet) {
+        $('pickupLat').value = here.lat.toFixed(6);
+        $('pickupLng').value = here.lng.toFixed(6);
+        try {
+          const addr = await ZenjiMap.reverseGeocode(here.lat, here.lng);
+          if (addr && $('pickupAddress') && !$('pickupAddress').value) {
+            $('pickupAddress').value = addr;
+          }
+        } catch (_) {}
+      }
+
+      window.__bookingMap = await ZenjiMap.createMap('bookingMap', {
+        center,
+        zoom: 14,
+        markers: buildCoreMarkers(),
+        fitBounds: false,
+        onMarkerDrag({ lat, lng, id }) {
+          if (id === 'pickup') {
+            $('pickupLat').value = lat.toFixed(6);
+            $('pickupLng').value = lng.toFixed(6);
+            $('pickupLat').dataset.userSet = '1';
+            loadOnlineDrivers();
+          } else if (id === 'dest') {
+            $('destLat').value = lat.toFixed(6);
+            $('destLng').value = lng.toFixed(6);
+          }
+          refreshMarkers();
+        }
+      });
+
+      const country = (ZENJIGO_CONFIG.MAP && ZENJIGO_CONFIG.MAP.COUNTRY) || 'tz';
+      if ($('pickupAddress')) {
+        await ZenjiMap.attachAutocomplete($('pickupAddress'), (place) => {
+          $('pickupAddress').value = place.address;
+          $('pickupLat').value = place.lat.toFixed(6);
+          $('pickupLng').value = place.lng.toFixed(6);
+          $('pickupLat').dataset.userSet = '1';
+          if (window.__bookingMap) window.__bookingMap.setCenter({ lat: place.lat, lng: place.lng }, 15);
+          refreshMarkers();
+          loadOnlineDrivers();
+        }, { country });
+      }
+      if ($('destAddress')) {
+        await ZenjiMap.attachAutocomplete($('destAddress'), (place) => {
+          $('destAddress').value = place.address;
+          $('destLat').value = place.lat.toFixed(6);
+          $('destLng').value = place.lng.toFixed(6);
+          refreshMarkers();
+        }, { country });
+      }
+
+      // Show online drivers on the map
+      await loadOnlineDrivers();
+      driversPollTimer = setInterval(loadOnlineDrivers, 25000);
+      window.addEventListener('beforeunload', () => clearInterval(driversPollTimer));
+    } catch (e) {
+      console.warn('Map:', e.message || e);
+      const box = $('bookingMap');
+      if (box) box.innerHTML = '<div class="p-4 text-center text-muted small">Map unavailable. Set GOOGLE_MAPS_API_KEY in js/config.js (Maps JavaScript API + Places + Geocoding).</div>';
     }
-    if ($('destAddress')) {
-      await ZenjiMap.attachAutocomplete($('destAddress'), (place) => {
-        $('destAddress').value = place.address;
-        $('destLat').value = place.lat.toFixed(6);
-        $('destLng').value = place.lng.toFixed(6);
-        refreshMarkers();
-      }, { country: (ZENJIGO_CONFIG.MAP && ZENJIGO_CONFIG.MAP.COUNTRY) || 'tz' });
-    }
-  } catch (e) {
-    console.warn('Map:', e.message || e);
-    const box = $('bookingMap');
-    if (box) box.innerHTML = '<div class="p-4 text-center text-muted small">Map unavailable. Set GOOGLE_MAPS_API_KEY in js/config.js (Maps JavaScript API + Places).</div>';
-  }
+  })();
 })();
 </script>
 

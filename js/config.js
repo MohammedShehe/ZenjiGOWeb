@@ -1,6 +1,6 @@
 // ZenjiGO Web - Configuration
 // Change API_BASE to your deployed backend URL when ready.
-const ZENJIGO_CONFIG = {
+var ZENJIGO_CONFIG = window.ZENJIGO_CONFIG = {
   API_BASE: (function () {
     const saved = (localStorage.getItem('zenjigo_api_base') || '').trim();
     // Local frontend servers (Live Server/Vite/etc.) usually run on a different

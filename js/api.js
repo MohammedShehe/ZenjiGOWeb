@@ -121,7 +121,19 @@ const Api = (() => {
     createRide: (body) => data('POST', '/rider/rides', { body }),
     getRide: (id) => data('GET', `/rider/rides/${id}`),
     track: (id) => data('GET', `/rider/rides/${id}/track`),
+    /** Cancel ride. Backend may apply a fee when cancellation is close to pickup / after driver accepted. */
     cancelRide: (id, reason) => data('POST', `/rider/rides/${id}/cancel`, { body: { reason } }),
+    /** Optional preview of cancellation fee (if backend supports it). Returns null on failure. */
+    cancelPreview: async (id) => {
+      try {
+        return await data('GET', `/rider/rides/${id}/cancel-preview`);
+      } catch (_) {
+        return null;
+      }
+    },
+    /** Nearby online drivers for map display. */
+    nearbyDrivers: (lat, lng, radiusKm = 5) =>
+      data('GET', `/rider/drivers/nearby?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}&radius=${radiusKm}`),
     rate: (id, stars, feedback, tip) =>
       data('POST', `/rider/rides/${id}/rating`, {
         body: { stars, ...(feedback ? { feedback } : {}), ...(tip != null ? { tip } : {}) }
