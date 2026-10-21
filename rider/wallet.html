@@ -64,6 +64,11 @@
             <input type="number" id="topupAmount" class="form-control" min="1000" step="500" value="10000">
           </div>
           <div class="mb-3">
+            <label class="form-label small fw-semibold">Mobile money phone</label>
+            <input type="tel" id="topupPhone" class="form-control" placeholder="255712345678" inputmode="tel">
+            <div class="form-text">PayGrid will send a payment prompt to this number. Include country code (255).</div>
+          </div>
+          <div class="mb-3">
             <label class="form-label small fw-semibold">Payment method</label>
             <select id="topupMethod" class="form-select">
               <option value="momo">Mobile Money</option>
@@ -116,13 +121,30 @@
     async function doTopup() {
       const amount = parseFloat(document.getElementById('topupAmount').value);
       const method = document.getElementById('topupMethod').value;
+      const phone = (document.getElementById('topupPhone')?.value || '').trim();
       if (!amount || amount < 1000) { showToast('Enter a valid amount', 'error'); return; }
+      if (!phone || phone.replace(/\D/g,'').length < 9) { showToast('Enter a valid mobile money phone (e.g. 255712345678)', 'error'); return; }
       const btn = document.getElementById('btnTopup');
       setLoading(btn, true);
       try {
-        await Api.rider.topUp(amount, method);
-        showToast('Top-up initiated');
+        const res = await Api.rider.topUp(amount, method, phone);
+        const msg = (res && (res.message || res.status === 'success' ? 'Wallet will be credited after payment confirmation.' : null)) || 'Top-up initiated. Confirm the prompt on your phone.';
+        showToast(msg);
         bootstrap.Modal.getInstance(document.getElementById('topupModal')).hide();
+        // Poll a few times in case webhook is fast
+        const paymentId = res && (res.paymentId || (res.data && res.data.paymentId));
+        if (paymentId && Api.rider.topUpStatus) {
+          let tries = 0;
+          const poll = setInterval(async () => {
+            tries++;
+            try {
+              const st = await Api.rider.topUpStatus(paymentId);
+              const status = st.status || st.data?.status;
+              if (status === 'success') { clearInterval(poll); showToast('Wallet credited'); load(); }
+              else if (status === 'failed' || tries >= 12) clearInterval(poll);
+            } catch (_) { if (tries >= 12) clearInterval(poll); }
+          }, 3000);
+        }
         load();
       } catch (e) {
         showToast(e.message || 'Top-up failed', 'error');

@@ -38,7 +38,23 @@ const ZENJIGO_CONFIG = {
     { id: 'tigo', name: 'Mix by Yas (Tigo)', code: 'TIGO' },
     { id: 'airtel', name: 'Airtel Money', code: 'AIRTEL' },
     { id: 'halopesa', name: 'HaloPesa', code: 'HALO' }
-  ]
+  ],
+  /**
+   * Maps – ready for production.
+   * Default: Leaflet + OpenStreetMap (no API key required).
+   * To use Google Maps instead:
+   *   1. Set MAP_PROVIDER: 'google'
+   *   2. Put your key in GOOGLE_MAPS_API_KEY
+   *   3. Enable Maps JavaScript API + Places API in Google Cloud Console
+   */
+  MAP: {
+    PROVIDER: 'leaflet', // 'leaflet' | 'google'
+    GOOGLE_MAPS_API_KEY: '', // paste your Google Maps JS API key here when switching
+    DEFAULT_CENTER: { lat: -6.1659, lng: 39.2026 }, // Stone Town, Zanzibar
+    DEFAULT_ZOOM: 13,
+    TILE_URL: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    TILE_ATTRIBUTION: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }
 };
 
 // Persist API base override

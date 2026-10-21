@@ -129,8 +129,9 @@ const Api = (() => {
     history: () => data('GET', '/rider/rides'),
     walletBalance: () => data('GET', '/rider/wallet'),
     walletTransactions: () => data('GET', '/rider/wallet/transactions'),
-    topUp: (amount, paymentMethod) =>
-      data('POST', '/rider/wallet/topup', { body: { amount, paymentMethod } }),
+    topUp: (amount, paymentMethod, phone) =>
+      data('POST', '/rider/wallet/topup', { body: { amount, paymentMethod, phone, provider: 'paygrid' } }),
+    topUpStatus: (id) => data('GET', '/rider/wallet/topup/' + id),
     promos: () => data('GET', '/promos'),
     applyPromo: (code, rideId) =>
       data('POST', '/promos/apply', { body: { code, ...(rideId ? { rideId } : {}) } }),

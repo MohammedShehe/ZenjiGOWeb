@@ -31,8 +31,7 @@
     <div class="app-content">
       <div class="row g-4">
         <div class="col-lg-7">
-          <div class="map-placeholder mb-3" id="mapBox">
-            <div class="text-center"><i class="bi bi-geo-alt fs-1"></i><br>Tracking map</div>
+          <div id="mapBox" class="mb-3 rounded-3 overflow-hidden border" style="height:280px;min-height:240px;background:#e8f4f3;"></div>
           </div>
           <div class="card-zenji p-4" id="rideInfo">
             <div class="text-center py-4"><div class="spinner-zenji mx-auto"></div></div>
@@ -80,7 +79,15 @@
           try {
             const track = await Api.rider.track(id);
             if (track.driverLat) {
-              document.getElementById('mapBox').innerHTML = '<div class="text-center"><i class="bi bi-geo-alt-fill fs-1 text-teal"></i><br>Driver at ' + Number(track.driverLat).toFixed(4) + ', ' + Number(track.driverLng).toFixed(4) + '</div>';
+              if (window.__rideMap) {
+              window.__rideMap.setMarkers([
+                { id: 'driver', lat: track.driverLat, lng: track.driverLng, label: 'Driver' },
+                track.pickupLat ? { id: 'pickup', lat: track.pickupLat, lng: track.pickupLng, label: 'Pickup' } : null
+              ].filter(Boolean));
+              window.__rideMap.setCenter({ lat: track.driverLat, lng: track.driverLng });
+            } else {
+              document.getElementById('mapBox').innerHTML = '<div class="text-center p-4"><i class="bi bi-geo-alt-fill fs-1 text-teal"></i><br>Driver at ' + Number(track.driverLat).toFixed(4) + ', ' + Number(track.driverLng).toFixed(4) + '</div>';
+            }
             }
           } catch (e) {}
           pollTimer = setTimeout(load, 8000);
@@ -129,5 +136,17 @@
     window.addEventListener('beforeunload', function() { clearTimeout(pollTimer); });
   </script>
   <script src="../js/rider-ui.js"></script>
+  <script src="../js/map.js"></script>
+
+<script>
+(async function initRideMap() {
+  if (!window.ZenjiMap) return;
+  const center = (window.ZENJIGO_CONFIG && window.ZENJIGO_CONFIG.MAP && window.ZENJIGO_CONFIG.MAP.DEFAULT_CENTER) || { lat: -6.1659, lng: 39.2026 };
+  try {
+    window.__rideMap = await ZenjiMap.createMap('mapBox', { center, zoom: 13, markers: [] });
+  } catch (e) { console.warn('Map init', e); }
+})();
+</script>
+
 </body>
 </html>
