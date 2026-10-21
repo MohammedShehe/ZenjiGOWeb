@@ -1,0 +1,99 @@
+/* ZenjiGO shared rider navigation and global theme controls */
+(function () {
+  'use strict';
+  const file = (location.pathname.split('/').pop() || 'dashboard.html').toLowerCase();
+  const items = [
+    ['dashboard.html','bi-house-door','Home'],
+    ['book.html','bi-plus-circle','Book a ride'],
+    ['history.html','bi-clock-history','Ride history'],
+    ['wallet.html','bi-wallet2','Wallet'],
+    ['payments.html','bi-credit-card','Payments'],
+    ['saved.html','bi-bookmark-heart','Saved places'],
+    ['parcels.html','bi-box-seam','Parcels'],
+    ['tours.html','bi-compass','Tours'],
+    ['chat.html','bi-chat-dots','Messages'],
+    ['profile.html','bi-person-circle','Profile']
+  ];
+  function buildNav() {
+    const side = document.getElementById('appSidebar');
+    if (!side) return;
+    const brand = side.querySelector('.brand');
+    if (brand) brand.innerHTML = 'Zenji<span>GO</span><small class="d-block fw-normal">RIDER PORTAL</small>';
+    let nav = side.querySelector('nav');
+    if (!nav) { nav = document.createElement('nav'); side.appendChild(nav); }
+    nav.className = 'rider-nav mt-2';
+    nav.innerHTML = '<div class="nav-section-label">YOUR JOURNEY</div>' +
+      items.map(([href, icon, label]) => `<a href="${href}" class="nav-link${file === href ? ' active' : ''}"${file === href ? ' aria-current="page"' : ''}><i class="bi ${icon}"></i><span>${label}</span></a>`).join('') +
+      '<div class="nav-section-label mt-3">ACCOUNT</div><a href="#" class="nav-link" id="zenjiRiderLogout"><i class="bi bi-box-arrow-right"></i><span>Sign out</span></a>';
+    document.getElementById('zenjiRiderLogout')?.addEventListener('click', e => {
+      e.preventDefault();
+      if (typeof window.logout === 'function') window.logout();
+    });
+  }
+  function setTheme(mode) {
+    mode = mode === 'dark' ? 'dark' : 'light';
+    document.documentElement.dataset.bsTheme = mode;
+    document.body.dataset.theme = mode;
+    document.body.dataset.bsTheme = mode;
+    try { localStorage.setItem('zenjigo_theme', mode); } catch (_) {}
+    document.querySelectorAll('.zenji-theme-toggle').forEach(b => {
+      b.innerHTML = mode === 'dark'
+        ? '<i class="bi bi-sun"></i><span class="theme-label">Light mode</span>'
+        : '<i class="bi bi-moon-stars"></i><span class="theme-label">Dark mode</span>';
+      b.setAttribute('aria-label', mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+    });
+  }
+  function themeButton() {
+    const host = document.querySelector('.app-topbar > .d-flex:last-child') || document.querySelector('.app-topbar') || document.querySelector('.auth-card') || document.querySelector('.rider-register-shell');
+    if (!host || host.querySelector('.zenji-theme-toggle')) return;
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'zenji-theme-toggle'; b.innerHTML = '<i class="bi bi-moon-stars"></i><span class="theme-label">Dark mode</span>';
+    b.addEventListener('click', () => setTheme(document.body.dataset.theme === 'dark' ? 'light' : 'dark'));
+    host.appendChild(b);
+  }
+  function mobileNav() {
+    const side = document.getElementById('appSidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    document.querySelectorAll('[onclick*="toggleSidebar"]').forEach(el => {
+      el.addEventListener('click', () => setTimeout(() => overlay?.classList.toggle('show', !!side?.classList.contains('show')), 0));
+    });
+    overlay?.addEventListener('click', () => { side?.classList.remove('show'); overlay.classList.remove('show'); });
+    side?.querySelectorAll('nav a').forEach(a => a.addEventListener('click', () => {
+      if (innerWidth < 992) { side.classList.remove('show'); overlay?.classList.remove('show'); }
+    }));
+  }
+  function loadingButtons() {
+    document.querySelectorAll('button[type="submit"], button[data-loading], .btn-primary-zenji').forEach(btn => {
+      if (btn.dataset.loadingWired) return;
+      btn.dataset.loadingWired = '1';
+      btn.addEventListener('click', () => {
+        if (btn.disabled || btn.dataset.noAutoLoading === 'true') return;
+        const form = btn.closest('form');
+        if (form && !form.checkValidity()) return;
+        if (btn.dataset.autoLoading === 'true') return;
+        btn.dataset.autoLoading = 'true';
+        const original = btn.innerHTML;
+        btn.dataset.originalLoadingHtml = original;
+        btn.classList.add('is-loading');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>' + (btn.dataset.loadingText || 'Please wait…');
+        const restore = () => {
+          btn.disabled = false; btn.classList.remove('is-loading');
+          btn.innerHTML = btn.dataset.originalLoadingHtml || original;
+          delete btn.dataset.autoLoading;
+        };
+        // Restore automatically if an existing async handler does not use setLoading().
+        setTimeout(() => { if (btn.dataset.autoLoading === 'true') restore(); }, 18000);
+      });
+    });
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    let mode = 'light'; try { mode = localStorage.getItem('zenjigo_theme') || 'light'; } catch (_) {}
+    setTheme(mode); buildNav(); themeButton(); mobileNav();
+  });
+  window.zenjiSetTheme = setTheme;
+  window.toggleSidebar = window.toggleSidebar || function () {
+    const s = document.getElementById('appSidebar'), o = document.getElementById('sidebarOverlay');
+    s?.classList.toggle('show'); o?.classList.toggle('show', !!s?.classList.contains('show'));
+  };
+})();

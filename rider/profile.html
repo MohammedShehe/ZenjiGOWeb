@@ -35,8 +35,8 @@
           <div class="card-zenji p-4">
             <h6 class="fw-bold mb-3">Personal info</h6>
             <div class="mb-3">
-              <label class="form-label small fw-semibold">Full name</label>
-              <input type="text" id="fullName" class="form-control">
+              <label class="form-label small fw-semibold" for="fullName">Full name</label>
+              <input type="text" id="fullName" name="fullName" class="form-control" autocomplete="name" placeholder="Enter your full name" required>
             </div>
             <div class="mb-3">
               <label class="form-label small fw-semibold">Phone</label>
@@ -79,21 +79,26 @@
     (async () => {
       try {
         const me = await Api.rider.me();
-        document.getElementById('fullName').value = me.fullName || me.name || '';
-        document.getElementById('phone').value = me.phone || '';
-        document.getElementById('email').value = me.email || '';
+        document.getElementById('fullName').value = me.fullName || me.full_name || me.name || Api.getUser()?.fullName || Api.getUser()?.full_name || '';
+        document.getElementById('phone').value = me.phone || Api.getUser()?.phone || '';
+        document.getElementById('email').value = me.email || Api.getUser()?.email || '';
+        // Keep the cached profile in sync with the canonical /rider/me response.
+        Api.setUser({ ...(Api.getUser() || {}), ...me, fullName: me.fullName || me.full_name || me.name || '' });
       } catch (e) {
         showToast(e.message, 'error');
       }
     })();
     async function saveProfile() {
       const btn = document.getElementById('btnSave');
+      const fullName = document.getElementById('fullName').value.trim();
+      const email = document.getElementById('email').value.trim();
+      if (!fullName) { showToast('Please enter your full name', 'error'); return; }
       setLoading(btn, true);
       try {
-        await Api.rider.updateMe({
-          fullName: document.getElementById('fullName').value.trim(),
-          email: document.getElementById('email').value.trim()
-        });
+        const updated = await Api.rider.updateMe({ fullName, email });
+        document.getElementById('fullName').value = updated.fullName || updated.full_name || fullName;
+        document.getElementById('email').value = updated.email || email;
+        Api.setUser({ ...(Api.getUser() || {}), ...updated, fullName: updated.fullName || updated.full_name || fullName });
         showToast('Profile updated');
       } catch (e) {
         showToast(e.message, 'error');
@@ -102,5 +107,6 @@
       }
     }
   </script>
+  <script src="../js/rider-ui.js"></script>
 </body>
 </html>

@@ -99,3 +99,13 @@ location.reload();
 ```
 
 The backend must allow the website's exact origin in `CORS_ORIGINS`, and its `/health` endpoint should be reachable. Do not use `localhost` for a remotely hosted website because it points to the visitor's own computer.
+
+
+## UI enhancement pass
+- Added shared rider navigation in `js/rider-ui.js`; rider pages now use one consistent menu and persistent `zenjigo_theme` preference.
+- Added a site-wide theme control for public pages in `js/site-ui.js`. Driver pages retain the shared driver navigation and use the same theme preference.
+- Extended `css/style.css` with responsive layouts, improved touch targets, form focus states, reduced-motion support, card and navigation polish, and mobile breakpoints.
+- Reworked `rider/payments.html` with card live preview and CVV-side flip, mobile-money provider/phone fields, bank details, validation, loading states, accessible list actions, and responsive layout.
+
+### Payment security note
+The browser-side card form deliberately sends only card label/brand, expiry, and last four digits; it never sends or stores the full card number or CVV. This is a polished UI flow, not a substitute for a PCI-compliant payment provider/tokenization integration. To actually charge cards, integrate a hosted/tokenized provider and save its payment-method token server-side. Mobile-money and bank-account flows also depend on backend support and provider verification.

@@ -1,76 +1,193 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Payment Methods – ZenjiGO</title>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b766e"><title>Payment Methods – ZenjiGO</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="../css/style.css" rel="stylesheet">
+  <style>
+    .payment-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:22px}
+    .payment-empty{padding:clamp(28px,5vw,54px) 18px;text-align:center}
+    .payment-empty-icon{width:64px;height:64px;display:grid;place-items:center;margin:0 auto 14px;border-radius:20px;background:rgba(49,208,198,.14);color:var(--ui-primary,#0b9992);font-size:1.65rem}
+    .pm-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 20px;border-bottom:1px solid var(--ui-border)}
+    .pm-row:last-child{border-bottom:0}.pm-icon{width:44px;height:44px;display:grid;place-items:center;flex-shrink:0;border-radius:14px;background:var(--ui-surface-muted);font-size:1.25rem}
+    .pm-left{display:flex;align-items:center;gap:12px;min-width:0}.pm-copy{min-width:0}.pm-copy .pm-title,.pm-copy .pm-sub{overflow-wrap:anywhere}
+    .payment-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.payment-form-grid .span-2{grid-column:1/-1}
+    .card-scene{width:min(100%,390px);aspect-ratio:1.586;margin:0 auto 22px;perspective:1100px}
+    .bank-card{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .65s cubic-bezier(.2,.75,.2,1)}
+    .bank-card.flipped{transform:rotateY(180deg)}.bank-card-face{position:absolute;inset:0;backface-visibility:hidden;overflow:hidden;border-radius:19px;padding:clamp(18px,4vw,26px);color:#fff;background:linear-gradient(130deg,#0a4d5c,#087f83 58%,#39c6c0);box-shadow:0 16px 35px rgba(0,70,80,.24)}
+    .bank-card-face:before,.bank-card-face:after{content:"";position:absolute;border-radius:50%;pointer-events:none}.bank-card-face:before{width:250px;height:250px;right:-95px;top:-130px;background:rgba(255,255,255,.10)}.bank-card-face:after{width:220px;height:220px;right:-65px;bottom:-160px;border:1px solid rgba(255,255,255,.2)}
+    .bank-card-back{transform:rotateY(180deg);background:linear-gradient(135deg,#124552,#062d3b)}
+    .card-brand-row,.card-number,.card-bottom,.card-chip,.card-strip,.card-cvv{position:relative;z-index:1}
+    .card-brand-row{display:flex;justify-content:space-between;align-items:center;font-size:.8rem;letter-spacing:1.5px;font-weight:800}
+    .card-chip{width:42px;height:31px;margin-top:clamp(15px,3vw,24px);border-radius:7px;background:linear-gradient(135deg,#e5d5a1,#b9a36a);border:1px solid rgba(255,255,255,.35)}
+    .card-number{font-size:clamp(1rem,3.4vw,1.38rem);letter-spacing:2px;white-space:nowrap;margin-top:clamp(12px,3vw,22px);font-variant-numeric:tabular-nums}
+    .card-bottom{display:flex;justify-content:space-between;gap:10px;margin-top:clamp(12px,2.8vw,22px);font-size:.68rem;text-transform:uppercase;letter-spacing:1px}.card-bottom strong{display:block;font-size:.78rem;letter-spacing:.5px;margin-top:4px;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:210px}
+    .card-strip{height:44px;background:#111b24;margin:4px calc(clamp(18px,4vw,26px)*-1) 16px}.card-cvv{margin-left:auto;width:76%;height:36px;background:#f5f7f8;color:#263641;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding:0 12px;font-weight:800;letter-spacing:3px}
+    .card-back-caption{position:relative;z-index:1;text-align:right;margin-top:8px;font-size:.65rem;opacity:.78}
+    .form-note{font-size:.8rem;color:var(--ui-muted);line-height:1.5}
+    .zenji-public-theme{position:fixed;right:16px;bottom:16px;z-index:30;box-shadow:0 5px 20px rgba(0,0,0,.12)}
+    @media(max-width:575.98px){.pm-row{padding:14px 12px;align-items:flex-start}.pm-actions{display:flex;flex-direction:column}.payment-form-grid{grid-template-columns:1fr;gap:12px}.payment-form-grid .span-2{grid-column:auto}.card-scene{margin-bottom:18px}.card-bottom strong{max-width:135px}.pm-row .btn{font-size:.78rem;padding:.35rem .5rem}}
+    body[data-theme="dark"] .payment-modal .modal-content{background:var(--ui-surface);color:var(--ui-text)}
+  </style>
 </head>
 <body class="app-shell">
   <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
-  <aside class="app-sidebar" id="appSidebar">
-    <div class="brand">Zenji<span>GO</span></div>
-    <nav class="mt-2">
-      <a href="dashboard.html" class="nav-link"><i class="bi bi-house"></i> Home</a>
-      <a href="payments.html" class="nav-link active"><i class="bi bi-credit-card"></i> Payments</a>
-      <a href="profile.html" class="nav-link"><i class="bi bi-person"></i> Profile</a>
-      <a href="#" class="nav-link" onclick="logout()"><i class="bi bi-box-arrow-left"></i> Logout</a>
-    </nav>
-  </aside>
+  <aside class="app-sidebar" id="appSidebar"><div class="brand">Zenji<span>GO</span></div><nav class="mt-2"></nav></aside>
   <div class="app-main">
     <div class="app-topbar">
       <div class="d-flex align-items-center gap-2">
-        <button class="btn btn-link d-lg-none p-0" onclick="toggleSidebar()"><i class="bi bi-list fs-3"></i></button>
-        <h5 class="mb-0 fw-bold">Payment Methods</h5>
+        <button class="btn btn-link d-lg-none p-0" onclick="toggleSidebar()" aria-label="Open navigation"><i class="bi bi-list fs-3"></i></button>
+        <div><h5 class="mb-0 fw-bold">Payment methods</h5><div class="small text-muted d-none d-sm-block">Manage how you pay for your rides</div></div>
       </div>
-      <button class="btn btn-aqua btn-sm" data-bs-toggle="modal" data-bs-target="#addModal">Add method</button>
+      <div class="d-flex align-items-center gap-2"><button class="btn btn-aqua btn-sm" data-bs-toggle="modal" data-bs-target="#addModal"><i class="bi bi-plus-lg me-1"></i><span class="d-none d-sm-inline">Add payment method</span><span class="d-sm-none">Add method</span></button></div>
     </div>
-    <div class="app-content">
-      <div class="card-zenji"><div class="card-body p-0" id="list"><div class="text-center py-4"><div class="spinner-zenji mx-auto"></div></div></div></div>
-    </div>
+    <main class="app-content">
+      <div class="payment-layout">
+        <section class="card-zenji">
+          <div class="card-header d-flex justify-content-between align-items-center p-3"><div><div class="fw-bold">Your payment methods</div><div class="small text-muted">Choose a default method or remove an old one</div></div><span class="badge rounded-pill text-bg-light" id="methodCount">0 saved</span></div>
+          <div id="list" aria-live="polite"><div class="payment-empty"><div class="spinner-zenji mx-auto mb-3"></div><div class="text-muted">Loading payment methods…</div></div></div>
+        </section>
+        <div class="small text-muted px-1"><i class="bi bi-shield-check me-1"></i>For your security, card number and CVV are never sent to or stored by this page. Secure card charging requires a payment provider/tokenization integration.</div>
+      </div>
+    </main>
   </div>
-  <div class="modal fade" id="addModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content rounded-4">
-        <div class="modal-header border-0"><h5 class="modal-title fw-bold">Add payment method</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
-        <div class="modal-body">
-          <div class="mb-3"><label class="form-label small fw-semibold">Type</label>
-            <select id="pmType" class="form-select"><option value="momo">Mobile Money</option><option value="card">Card</option><option value="bank">Bank</option></select>
+  <div class="modal fade payment-modal" id="addModal" tabindex="-1" aria-labelledby="addModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg"><div class="modal-content">
+      <div class="modal-header border-0 px-4 pt-4"><div><h5 class="modal-title fw-bold" id="addModalTitle">Add a payment method</h5><div class="small text-muted">A few details and you’re all set</div></div><button class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+      <div class="modal-body px-4 pb-4">
+        <div class="mb-4"><label class="form-label" for="pmType">Payment type</label><select id="pmType" class="form-select"><option value="momo">Mobile Money</option><option value="card">Debit / Credit Card</option><option value="bank">Bank account</option></select></div>
+        <div id="cardFields" class="d-none">
+          <div class="card-scene" aria-label="Live payment card preview">
+            <div class="bank-card" id="bankCard">
+              <div class="bank-card-face bank-card-front">
+                <div class="card-brand-row"><span>ZENJIGO</span><span id="cardBrand">CARD</span></div><div class="card-chip"></div>
+                <div class="card-number" id="previewNumber">•••• •••• •••• ••••</div>
+                <div class="card-bottom"><div>Card holder<strong id="previewName">YOUR NAME</strong></div><div>Expires<strong id="previewExpiry">MM/YY</strong></div></div>
+              </div>
+              <div class="bank-card-face bank-card-back"><div class="card-strip"></div><div class="small mb-1">CVV</div><div class="card-cvv" id="previewCvv">•••</div><div class="card-back-caption">Authorized cardholder signature</div></div>
+            </div>
           </div>
-          <div class="mb-3"><label class="form-label small fw-semibold">Provider / Label</label><input id="pmLabel" class="form-control" placeholder="e.g. M-Pesa"></div>
-          <div class="mb-3"><label class="form-label small fw-semibold">Account / Number</label><input id="pmAccount" class="form-control" placeholder="Phone or card last 4"></div>
-          <button class="btn btn-primary-zenji" onclick="addPM()">Save</button>
+          <div class="payment-form-grid">
+            <div class="span-2"><label class="form-label" for="cardNumber">Card number</label><input id="cardNumber" class="form-control" inputmode="numeric" autocomplete="cc-number" maxlength="23" placeholder="1234 5678 9012 3456"></div>
+            <div class="span-2"><label class="form-label" for="cardName">Name on card</label><input id="cardName" class="form-control" autocomplete="cc-name" maxlength="80" placeholder="As shown on card"></div>
+            <div><label class="form-label" for="cardExpiry">Expiry date</label><input id="cardExpiry" class="form-control" inputmode="numeric" autocomplete="cc-exp" maxlength="5" placeholder="MM/YY"></div>
+            <div><label class="form-label" for="cardCvv">Security code (CVV)</label><input id="cardCvv" class="form-control" inputmode="numeric" autocomplete="cc-csc" maxlength="4" placeholder="3 or 4 digits"></div>
+          </div>
+          <p class="form-note mt-3 mb-0"><i class="bi bi-lock me-1"></i>Live preview only. This demo saves a label and last four digits, not your full card credentials.</p>
         </div>
+        <div id="momoFields">
+          <div class="payment-form-grid">
+            <div><label class="form-label" for="pmProvider">Mobile money provider</label><select id="pmProvider" class="form-select"><option value="">Choose provider</option><option>M-Pesa</option><option>Tigo Pesa</option><option>Airtel Money</option><option>HaloPesa</option><option>Mixx by Yas</option><option>Other</option></select></div>
+            <div><label class="form-label" for="pmPhone">Mobile number</label><input id="pmPhone" class="form-control" type="tel" inputmode="tel" autocomplete="tel" placeholder="+255 7XX XXX XXX"></div>
+          </div>
+        </div>
+        <div id="bankFields" class="d-none">
+          <div class="payment-form-grid">
+            <div><label class="form-label" for="bankProvider">Bank name</label><input id="bankProvider" class="form-control" placeholder="e.g. CRDB, NMB"></div>
+            <div><label class="form-label" for="bankName">Account holder</label><input id="bankName" class="form-control" placeholder="Full name"></div>
+            <div class="span-2"><label class="form-label" for="bankAccount">Account number</label><input id="bankAccount" class="form-control" inputmode="numeric" autocomplete="off" placeholder="Enter account number"></div>
+          </div>
+          <p class="form-note mt-3 mb-0">Only the last four digits are saved by this page. Do not enter account credentials or PINs.</p>
+        </div>
+        <div class="alert alert-warning py-2 px-3 small mt-3 mb-0 d-none" id="pmError" role="alert"></div>
       </div>
-    </div>
+      <div class="modal-footer border-0 px-4 pb-4"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary-zenji px-4" id="savePMBtn" onclick="addPM()"><i class="bi bi-shield-check me-2"></i>Save method</button></div>
+    </div></div>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="../js/config.js"></script>
-  <script src="../js/api.js"></script>
-  <script src="../js/utils.js"></script>
+  <script src="../js/config.js"></script><script src="../js/api.js"></script><script src="../js/utils.js"></script>
   <script>
     if (!requireAuth('rider')) throw new Error('auth');
+    const $ = id => document.getElementById(id);
+    const digits = value => String(value || '').replace(/\D/g, '');
+    const escapeHtml = value => String(value || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    function setType() {
+      const type = $('pmType').value;
+      $('cardFields').classList.toggle('d-none', type !== 'card');
+      $('momoFields').classList.toggle('d-none', type !== 'momo');
+      $('bankFields').classList.toggle('d-none', type !== 'bank');
+      $('pmError').classList.add('d-none'); $('bankCard').classList.remove('flipped');
+    }
+    $('pmType').addEventListener('change', setType);
+    function updateCard() {
+      const n = digits($('cardNumber').value).slice(0,19);
+      $('cardNumber').value = n.replace(/(.{4})/g,'$1 ').trim();
+      $('previewNumber').textContent = n ? (n + '•'.repeat(Math.max(0,16-n.length))).replace(/(.{4})/g,'$1 ').trim() : '•••• •••• •••• ••••';
+      $('previewName').textContent = $('cardName').value.trim().toUpperCase() || 'YOUR NAME';
+      const exp = $('cardExpiry').value.replace(/\D/g,'').slice(0,4);
+      $('cardExpiry').value = exp.length > 2 ? exp.slice(0,2) + '/' + exp.slice(2) : exp;
+      $('previewExpiry').textContent = $('cardExpiry').value || 'MM/YY';
+      $('previewCvv').textContent = $('cardCvv').value ? '•'.repeat($('cardCvv').value.length) : '•••';
+      $('cardBrand').textContent = /^4/.test(n) ? 'VISA' : /^(5[1-5]|2)/.test(n) ? 'MASTERCARD' : /^3/.test(n) ? 'AMEX' : 'CARD';
+    }
+    ['cardNumber','cardName','cardExpiry','cardCvv'].forEach(id => $(id).addEventListener('input', updateCard));
+    $('cardCvv').addEventListener('focus', () => $('bankCard').classList.add('flipped'));
+    $('cardCvv').addEventListener('blur', () => $('bankCard').classList.remove('flipped'));
+    function error(message) { $('pmError').textContent = message; $('pmError').classList.remove('d-none'); }
     async function load() {
+      const el = $('list');
       try {
         const data = await Api.rider.paymentMethods();
         const list = Array.isArray(data) ? data : [];
-        const el = document.getElementById('list');
-        if (!list.length) { el.innerHTML = '<div class="text-center py-4 text-muted">No payment methods yet.</div>'; return; }
-        el.innerHTML = list.map(p => '<div class="d-flex justify-content-between align-items-center px-3 py-3 border-bottom"><div><div class="fw-semibold">' + (p.type || p.provider || 'Method') + (p.isDefault ? ' <span class="badge bg-success">Default</span>' : '') + '</div><div class="small text-muted">' + (p.label || p.account || p.last4 || '') + '</div></div><div class="d-flex gap-2"><button class="btn btn-sm btn-outline-secondary" onclick="setDefault(\'' + p.id + '\')">Default</button><button class="btn btn-sm btn-outline-danger" onclick="removePM(\'' + p.id + '\')">Remove</button></div></div>').join('');
-      } catch (e) { document.getElementById('list').innerHTML = '<div class="text-center py-4 text-danger">' + e.message + '</div>'; }
+        $('methodCount').textContent = list.length + (list.length === 1 ? ' saved' : ' saved');
+        if (!list.length) { el.innerHTML = '<div class="payment-empty"><div class="payment-empty-icon"><i class="bi bi-credit-card-2-front"></i></div><h6 class="fw-bold">No payment methods yet</h6><p class="text-muted mb-3">Add mobile money, a card, or a bank account to get started.</p><button class="btn btn-primary-zenji" data-bs-toggle="modal" data-bs-target="#addModal"><i class="bi bi-plus-lg me-1"></i>Add your first method</button></div>'; return; }
+        el.innerHTML = list.map(p => {
+          const type = String(p.type || p.provider || 'Payment method');
+          const label = p.label || p.provider || (p.last4 ? '•••• ' + p.last4 : p.account ? '•••• ' + String(p.account).slice(-4) : 'Saved payment method');
+          const icon = /card/i.test(type) ? 'bi-credit-card-2-front' : /bank/i.test(type) ? 'bi-bank' : 'bi-phone';
+          return `<div class="pm-row"><div class="pm-left"><div class="pm-icon"><i class="bi ${icon}"></i></div><div class="pm-copy"><div class="pm-title fw-bold">${escapeHtml(type)} ${p.isDefault ? '<span class="badge text-bg-success ms-1">Default</span>' : ''}</div><div class="pm-sub small text-muted">${escapeHtml(label)}</div></div></div><div class="pm-actions d-flex gap-2">${p.isDefault ? '' : `<button class="btn btn-sm btn-outline-secondary" data-action="default" data-id="${escapeHtml(p.id)}">Set default</button>`}<button class="btn btn-sm btn-outline-danger" data-action="remove" data-id="${escapeHtml(p.id)}" aria-label="Remove ${escapeHtml(type)}">Remove</button></div></div>`;
+        }).join('');
+        el.querySelectorAll('[data-action="default"]').forEach(b => b.addEventListener('click', () => setDefault(b.dataset.id,b)));
+        el.querySelectorAll('[data-action="remove"]').forEach(b => b.addEventListener('click', () => removePM(b.dataset.id,b)));
+      } catch (e) {
+        el.innerHTML = `<div class="payment-empty"><div class="text-danger mb-2"><i class="bi bi-exclamation-circle fs-3"></i></div><div class="fw-semibold">Could not load payment methods</div><div class="text-muted small mt-1">${escapeHtml(e.message)}</div><button class="btn btn-outline-secondary btn-sm mt-3" onclick="load()">Try again</button></div>`;
+      }
+    }
+    function setBusy(btn,busy,label) {
+      if (!btn) return;
+      if (busy) { btn.dataset.oldHtml=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>'+label; }
+      else { btn.disabled=false;if(btn.dataset.oldHtml)btn.innerHTML=btn.dataset.oldHtml; }
     }
     async function addPM() {
+      const btn = $('savePMBtn'), type = $('pmType').value;
+      $('pmError').classList.add('d-none');
+      let body = {};
+      if (type === 'card') {
+        const number = digits($('cardNumber').value), name = $('cardName').value.trim(), expiry = $('cardExpiry').value.trim(), cvv = digits($('cardCvv').value);
+        if (number.length < 13 || number.length > 19) return error('Enter a valid card number (13–19 digits).');
+        if (!name) return error('Enter the name printed on the card.');
+        if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry)) return error('Enter expiry in MM/YY format.');
+        const [mm,yy] = expiry.split('/').map(Number), now = new Date(), year = 2000 + yy;
+        if (year < now.getFullYear() || (year === now.getFullYear() && mm < now.getMonth()+1)) return error('This card appears to be expired.');
+        if (cvv.length < 3 || cvv.length > 4) return error('Enter a valid 3–4 digit security code.');
+        body = {type:'card',label:name,provider:$('cardBrand').textContent,account:'',last4:number.slice(-4),expiry};
+        // Never transmit or persist full card number or CVV from this page.
+      } else if (type === 'momo') {
+        const provider = $('pmProvider').value, phone = $('pmPhone').value.trim();
+        if (!provider) return error('Choose your mobile money provider.');
+        if (digits(phone).length < 7) return error('Enter a valid mobile money phone number.');
+        body = {type:'momo',label:provider,provider,account:phone};
+      } else {
+        const provider = $('bankProvider').value.trim(), holder = $('bankName').value.trim(), account = digits($('bankAccount').value);
+        if (!provider || !holder || account.length < 5) return error('Enter the bank name, account holder, and a valid account number.');
+        body = {type:'bank',label:holder,provider,account:'••••'+account.slice(-4),last4:account.slice(-4)};
+      }
+      setBusy(btn,true,'Saving…');
       try {
-        await Api.rider.addPaymentMethod({ type: document.getElementById('pmType').value, label: document.getElementById('pmLabel').value, account: document.getElementById('pmAccount').value });
-        showToast('Added'); bootstrap.Modal.getInstance(document.getElementById('addModal')).hide(); load();
-      } catch (e) { showToast(e.message, 'error'); }
+        await Api.rider.addPaymentMethod(body);
+        bootstrap.Modal.getOrCreateInstance($('addModal')).hide();
+        showToast('Payment method saved','success');
+        $('cardNumber').value='';$('cardName').value='';$('cardExpiry').value='';$('cardCvv').value='';$('pmPhone').value='';$('pmProvider').value='';$('bankProvider').value='';$('bankName').value='';$('bankAccount').value='';updateCard();load();
+      } catch (e) { error(e.message || 'Could not save payment method.'); }
+      finally { setBusy(btn,false); }
     }
-    async function setDefault(id) { try { await Api.rider.setDefaultPayment(id); showToast('Updated'); load(); } catch (e) { showToast(e.message, 'error'); } }
-    async function removePM(id) { if (!confirm('Remove?')) return; try { await Api.rider.deletePaymentMethod(id); showToast('Removed'); load(); } catch (e) { showToast(e.message, 'error'); } }
-    load();
+    async function setDefault(id,btn) { setBusy(btn,true,'Updating…');try{await Api.rider.setDefaultPayment(id);showToast('Default payment method updated');await load()}catch(e){showToast(e.message,'error')}finally{setBusy(btn,false)} }
+    async function removePM(id,btn) { if(!confirm('Remove this payment method?'))return;setBusy(btn,true,'Removing…');try{await Api.rider.deletePaymentMethod(id);showToast('Payment method removed');await load()}catch(e){showToast(e.message,'error');setBusy(btn,false)} }
+    $('addModal').addEventListener('hidden.bs.modal',()=>{$('bankCard').classList.remove('flipped');$('pmError').classList.add('d-none')});
+    setType();load();
   </script>
-</body>
-</html>
+  <script src="../js/rider-ui.js"></script>
+</body></html>

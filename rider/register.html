@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b766e"><title>Rider Registration – ZenjiGO</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="../css/style.css" rel="stylesheet">
+  <style>
+    .rider-register-shell{width:min(100% - 24px,760px);margin:32px auto}.rider-register-card{padding:clamp(22px,4vw,40px);border:1px solid var(--bs-border-color);border-radius:24px;box-shadow:0 20px 60px rgba(15,35,55,.12);background:var(--bs-body-bg)}
+    .register-mark{width:48px;height:48px;display:grid;place-items:center;border-radius:15px;background:rgba(22,160,133,.12);color:#118675;font-size:1.35rem}.register-intro{display:flex;align-items:flex-start;gap:14px;margin-bottom:26px}.register-intro p{max-width:560px}.field-label{font-size:.83rem;font-weight:650;margin-bottom:7px}.form-control,.form-select{min-height:46px;border-radius:11px}.form-control:focus,.form-select:focus{border-color:#16a085;box-shadow:0 0 0 .2rem rgba(22,160,133,.13)}.register-submit{min-height:48px;border-radius:12px;font-weight:750}.status-note{display:flex;gap:10px;padding:13px 15px;border-radius:12px;background:rgba(22,160,133,.08);color:var(--bs-secondary-color);font-size:.86rem}.status-note i{color:#118675;font-size:1.1rem}
+    @media(max-width:575px){.rider-register-shell{width:calc(100% - 18px);margin:16px auto}.rider-register-card{padding:20px;border-radius:18px}}
+  </style>
+</head>
+<body>
+  <main class="rider-register-shell">
+    <section class="rider-register-card">
+      <div class="text-center mb-4"><div class="logo">Zenji<span>GO</span></div><h1 class="h3 fw-bold mt-3 mb-2">Create your rider account</h1><p class="text-muted mb-0">Register with the same details used in the ZenjiGO admin rider record.</p></div>
+      <div id="stepDetails">
+        <form id="registerForm" novalidate>
+          <div class="register-intro"><div class="register-mark"><i class="bi bi-person-vcard"></i></div><div><h2 class="h6 fw-bold mb-1">Rider details</h2><p class="text-muted small mb-0">Enter your name and contact details, then select your island and region / area.</p></div></div>
+          <div class="row g-3">
+            <div class="col-12"><label class="form-label field-label" for="fullName">Full name <span class="text-danger">*</span></label><input class="form-control" id="fullName" name="fullName" autocomplete="name" maxlength="120" required placeholder="Enter your full name"><div class="invalid-feedback">Enter your full name.</div></div>
+            <div class="col-md-6"><label class="form-label field-label" for="phone">Phone <span class="text-danger">*</span></label><div class="input-group"><select id="countryCode" class="form-select" aria-label="Country calling code" style="max-width:125px"></select><input class="form-control" id="phone" name="phone" type="tel" autocomplete="tel-national" inputmode="tel" required placeholder="6XX XXX XXX"></div><div class="form-text">Use the same phone number you will verify with OTP.</div></div>
+            <div class="col-md-6"><label class="form-label field-label" for="email">Email <span class="text-danger">*</span></label><input class="form-control" id="email" name="email" type="email" autocomplete="email" maxlength="190" required placeholder="you@example.com"><div class="invalid-feedback">Enter a valid email address.</div></div>
+            <div class="col-md-6"><label class="form-label field-label" for="island">Island</label><input class="form-control" id="island" name="island" maxlength="100" placeholder="e.g. Unguja"></div>
+            <div class="col-md-6"><label class="form-label field-label" for="region">Region / area</label><input class="form-control" id="region" name="region" maxlength="120" placeholder="Enter your region or area"></div>
+            <div class="col-12"><div class="status-note"><i class="bi bi-shield-check"></i><span><strong>Account status:</strong> Your account status is managed by ZenjiGO and cannot be set from public registration.</span></div></div>
+            <div class="col-12 pt-2"><button type="submit" class="btn btn-primary-zenji register-submit w-100" id="btnSendOtp"><i class="bi bi-envelope-check me-2"></i>Continue with email OTP</button></div>
+          </div>
+        </form>
+      </div>
+      <div id="stepOtp" class="d-none">
+        <div class="register-intro"><div class="register-mark"><i class="bi bi-shield-lock"></i></div><div><h2 class="h5 fw-bold mb-1">Verify your email</h2><p class="text-muted small mb-0">Enter the one-time code sent to <strong id="displayEmail"></strong>.</p></div></div>
+        <form id="otpForm"><label class="form-label field-label" for="otp">Verification code <span class="text-danger">*</span></label><input class="form-control text-center fs-4 mb-3" id="otp" maxlength="8" inputmode="numeric" autocomplete="one-time-code" required placeholder="Enter OTP"><button class="btn btn-primary-zenji register-submit w-100" id="btnVerify" type="submit">Verify and create account</button><button class="btn btn-link w-100 mt-2" id="btnResend" type="button">Resend code</button><button class="btn btn-link w-100 text-muted" id="btnBack" type="button">Back to rider details</button></form>
+      </div>
+      <hr class="my-4"><p class="text-center small text-muted mb-0">Already registered? <a href="login.html" class="text-teal fw-semibold">Sign in</a><br><a href="../index.html" class="text-muted d-inline-block mt-2">← Back to website</a></p>
+    </section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script><script src="../js/config.js"></script><script src="../js/api.js"></script><script src="../js/utils.js"></script>
+  <script>
+    fillCountrySelect(document.getElementById('countryCode'), '+255');
+    const $ = id => document.getElementById(id); let registration = {}; let countdownTimer = null; let resendAllowed = false;
+    function setBusy(btn,busy,label){btn.disabled=busy;btn.innerHTML=busy?'<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Please wait…':label;}
+    function phoneValue(){return buildPhone($('countryCode').value,$('phone').value.trim());}
+    async function requestOtp(){
+      const form=$('registerForm'); if(!form.reportValidity()) return;
+      registration={fullName:$('fullName').value.trim(),phone:phoneValue(),email:$('email').value.trim().toLowerCase(),island:$('island').value.trim(),region:$('region').value.trim()};
+      if(!registration.phone || registration.phone.replace(/\D/g,'').length<7){showToast('Enter a valid phone number.','error');return;}
+      const btn=$('btnSendOtp');setBusy(btn,true);
+      try{const result=await Api.auth.sendRiderOtp(registration.phone,registration.email);$('displayEmail').textContent=result.maskedEmail||result.target||registration.email;$('stepDetails').classList.add('d-none');$('stepOtp').classList.remove('d-none');$('otp').focus();showToast('Verification code sent.');}
+      catch(e){showToast(e.message||'Could not send verification code.','error');}
+      finally{setBusy(btn,false,'<i class="bi bi-envelope-check me-2"></i>Continue with email OTP');}
+    }
+    $('registerForm').addEventListener('submit',e=>{e.preventDefault();requestOtp();});
+    $('otpForm').addEventListener('submit',async e=>{e.preventDefault();const code=$('otp').value.trim();if(code.length<4){showToast('Enter the verification code.','error');return;}const btn=$('btnVerify');setBusy(btn,true);
+      try{const data=await Api.auth.verifyRiderOtp(registration.phone,registration.email,code,{fullName:registration.fullName,island:registration.island,region:registration.region});const access=data.accessToken||data.access||(data.tokens&&data.tokens.accessToken);const refresh=data.refreshToken||data.refresh||(data.tokens&&data.tokens.refreshToken);if(access)Api.setTokens(access,refresh);Api.setRole('rider');if(data.user||data.rider)Api.setUser(data.user||data.rider);showToast('Rider account created successfully.');setTimeout(()=>location.href='dashboard.html',450);}
+      catch(err){showToast(err.message||'Could not verify code.','error');}
+      finally{setBusy(btn,false,'Verify and create account');}
+    });
+    $('btnBack').addEventListener('click',()=>{$('stepOtp').classList.add('d-none');$('stepDetails').classList.remove('d-none');$('otp').value='';});
+    $('btnResend').addEventListener('click',async()=>{const btn=$('btnResend');btn.disabled=true;try{await Api.auth.sendRiderOtp(registration.phone,registration.email);showToast('A new verification code was sent.');}catch(e){showToast(e.message||'Could not resend code.','error');}finally{btn.disabled=false;}});
+    if(Api.isLoggedIn()&&Api.getRole()==='rider')location.href='dashboard.html';
+  </script>
+  <script src="../js/rider-ui.js"></script>
+</body>
+</html>

@@ -58,7 +58,7 @@
         const list = Array.isArray(data) ? data : [];
         const el = document.getElementById('convList');
         if (!list.length) { el.innerHTML = '<div class="text-center py-4 text-muted small">No conversations. Open support to start.</div>'; return; }
-        el.innerHTML = list.map(c => '<a href="#" class="d-block px-3 py-3 border-bottom text-decoration-none text-dark" onclick="openChat(\'' + c.id + '\',\'' + (c.title||c.type||'Chat') + '\')"><div class="fw-semibold small">' + (c.title||c.type||'Chat') + '</div><div class="text-muted" style="font-size:0.75rem">' + (c.lastMessage||'') + '</div></a>').join('');
+        el.innerHTML = list.map(c => '<a href="#" class="d-block px-3 py-3 border-bottom text-decoration-none conv-item" onclick="openChat(\'' + c.id + '\',\'' + (c.title||c.type||'Chat') + '\')"><div class="fw-semibold small">' + (c.title||c.type||'Chat') + '</div><div class="text-muted" style="font-size:0.75rem">' + (c.lastMessage||'') + '</div></a>').join('');
       } catch (e) { document.getElementById('convList').innerHTML = '<div class="p-3 text-danger small">' + e.message + '</div>'; }
     }
     async function openChat(id, title) {
@@ -90,5 +90,6 @@
     }
     loadConvs();
   </script>
+  <script src="../js/rider-ui.js"></script>
 </body>
 </html>

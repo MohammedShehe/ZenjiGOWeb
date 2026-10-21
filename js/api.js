@@ -90,9 +90,9 @@ const Api = (() => {
   const auth = {
     sendRiderOtp: (phone, email) =>
       data('POST', '/auth/rider/send-otp', { body: { phone, email }, auth: false }),
-    verifyRiderOtp: (phone, email, code, fullName) =>
+    verifyRiderOtp: (phone, email, code, profile = {}) =>
       data('POST', '/auth/rider/verify-otp', {
-        body: { phone, email, code, ...(fullName ? { fullName } : {}) },
+        body: { phone, email, code, ...(typeof profile === 'string' ? (profile ? { fullName: profile } : {}) : profile) },
         auth: false
       }),
     sendDriverOtp: (phone, email, purpose = 'login') =>

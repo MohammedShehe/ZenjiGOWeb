@@ -67,5 +67,6 @@
     async function del(id) { if (!confirm('Delete?')) return; try { await Api.rider.deleteSavedLocation(id); load(); } catch (e) { showToast(e.message, 'error'); } }
     load();
   </script>
+  <script src="../js/rider-ui.js"></script>
 </body>
 </html>

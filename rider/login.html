@@ -29,8 +29,7 @@
           <div class="form-text">Enter number without country code. Leading 0 is OK.</div>
         </div>
         <div class="mb-3">
-          <label class="form-label small fw-semibold">Full name <span class="text-muted">(new users only)</span></label>
-          <input type="text" id="fullName" class="form-control" placeholder="Optional for existing riders">
+          <p class="small text-muted mb-0">New to ZenjiGO? <a href="register.html" class="text-teal fw-semibold">Create a rider account</a>.</p>
         </div>
         <button class="btn btn-primary-zenji" id="btnSendOtp" onclick="sendOtp()">Send OTP</button>
       </div>
@@ -118,7 +117,6 @@
 
     async function verifyOtp() {
       const otp = document.getElementById('otp').value.trim();
-      const fullName = document.getElementById('fullName').value.trim();
       if (!otp || otp.length < 4) {
         showToast('Enter the OTP', 'error');
         return;
@@ -126,7 +124,7 @@
       const btn = document.getElementById('btnVerify');
       setLoading(btn, true);
       try {
-        const data = await Api.auth.verifyRiderOtp(currentPhone, currentEmail, otp, fullName || undefined);
+        const data = await Api.auth.verifyRiderOtp(currentPhone, currentEmail, otp);
         const access = data.accessToken || data.access || (data.tokens && data.tokens.accessToken);
         const refresh = data.refreshToken || data.refresh || (data.tokens && data.tokens.refreshToken);
         if (access) Api.setTokens(access, refresh);
@@ -151,5 +149,6 @@
       location.href = 'dashboard.html';
     }
   </script>
+  <script src="../js/rider-ui.js"></script>
 </body>
 </html>

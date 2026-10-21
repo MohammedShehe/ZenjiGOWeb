@@ -56,7 +56,7 @@
         const list = Array.isArray(data) ? data : [];
         const el = document.getElementById('convList');
         if (!list.length) { el.innerHTML = '<div class="text-center py-4 text-muted small">No conversations.</div>'; return; }
-        el.innerHTML = list.map(c => '<a href="#" class="d-block px-3 py-3 border-bottom text-decoration-none text-dark" onclick="openChat(\'' + c.id + '\',\'' + (c.title||c.type||'Chat') + '\')"><div class="fw-semibold small">' + (c.title||c.type||'Chat') + '</div></a>').join('');
+        el.innerHTML = list.map(c => '<a href="#" class="d-block px-3 py-3 border-bottom text-decoration-none conv-item" onclick="openChat(\'' + c.id + '\',\'' + (c.title||c.type||'Chat') + '\')"><div class="fw-semibold small">' + (c.title||c.type||'Chat') + '</div></a>').join('');
       } catch (e) { document.getElementById('convList').innerHTML = '<div class="p-3 text-danger small">' + e.message + '</div>'; }
     }
     async function openChat(id, title) {
@@ -66,7 +66,7 @@
       try {
         const msgs = await Api.driver.messages(id);
         const list = Array.isArray(msgs) ? msgs : [];
-        document.getElementById('messages').innerHTML = list.map(m => '<div class="mb-2 ' + (m.senderRole==='driver' ? 'text-end' : '') + '"><span class="d-inline-block px-3 py-2 rounded-3 ' + (m.senderRole==='driver' ? 'bg-aqua-soft' : 'bg-light') + ' small">' + (m.text||m.body||'') + '</span></div>').join('') || '<p class="text-muted small">No messages.</p>';
+        document.getElementById('messages').innerHTML = list.map(m => '<div class="mb-2 ' + (m.senderRole==='driver' ? 'text-end' : '') + '"><span class="d-inline-block px-3 py-2 rounded-3 ' + (m.senderRole==='driver' ? 'bg-aqua-soft' : 'bg-msg-other') + ' small">' + (m.text||m.body||'') + '</span></div>').join('') || '<p class="text-muted small">No messages.</p>';
       } catch (e) { document.getElementById('messages').innerHTML = '<p class="text-danger small">' + e.message + '</p>'; }
     }
     async function openSupport() {
@@ -88,5 +88,6 @@
     }
     loadConvs();
   </script>
+  <script src="../js/driver-ui.js"></script>
 </body>
 </html>
