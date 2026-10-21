@@ -52,17 +52,40 @@
     (async () => {
       try {
         const me = await Api.driver.me();
+        const appStatus = me.application_status || me.applicationStatus || me.approvalStatus || me.status || 'pending';
+        const rejectReason = me.rejection_reason || me.rejectionReason || '';
+        const onlineBadge = '<span class="status-badge ' + (me.online ? 'status-online' : 'status-offline') + '">' + (me.online ? 'Online' : 'Offline') + '</span>';
+        let appBadgeClass = 'status-pending';
+        if (/active|approved/i.test(appStatus)) appBadgeClass = 'status-online';
+        else if (/reject|suspend/i.test(appStatus)) appBadgeClass = 'status-offline';
+        const appBadge = '<span class="status-badge ' + appBadgeClass + '">' + String(appStatus).replace(/_/g, ' ') + '</span>';
+        const reasonBlock = rejectReason
+          ? '<div class="alert alert-danger py-2 px-3 mt-3 mb-0 small"><strong>Rejection reason:</strong> ' + String(rejectReason).replace(/</g,'&lt;') + '</div>'
+          : '';
         document.getElementById('profileCard').innerHTML = '<h6 class="fw-bold mb-3">Personal info</h6>' +
-          '<div class="mb-2"><span class="text-muted small">Name</span><div class="fw-semibold">' + (me.fullName||me.name||'—') + '</div></div>' +
-          '<div class="mb-2"><span class="text-muted small">Phone</span><div class="fw-semibold">' + (me.phone||'—') + '</div></div>' +
-          '<div class="mb-2"><span class="text-muted small">Email</span><div class="fw-semibold">' + (me.email||'—') + '</div></div>' +
-          '<div class="mb-2"><span class="text-muted small">Vehicle</span><div class="fw-semibold">' + (me.vehicleType||'') + ' · ' + (me.plateNumber||'') + '</div></div>' +
-          '<div><span class="text-muted small">Status</span><div><span class="status-badge ' + (me.online?'status-online':'status-offline') + '">' + (me.online?'Online':'Offline') + '</span> · ' + (me.approvalStatus||me.status||'') + '</div></div>';
+          '<div class="mb-2"><span class="text-muted small">Name</span><div class="fw-semibold">' + (me.full_name || me.fullName || me.name || '—') + '</div></div>' +
+          '<div class="mb-2"><span class="text-muted small">Phone</span><div class="fw-semibold">' + (me.phone || '—') + '</div></div>' +
+          '<div class="mb-2"><span class="text-muted small">Email</span><div class="fw-semibold">' + (me.email || '—') + '</div></div>' +
+          '<div class="mb-2"><span class="text-muted small">Driver code</span><div class="fw-semibold">' + (me.driver_code || me.driverCode || '—') + '</div></div>' +
+          '<div class="mb-2"><span class="text-muted small">Vehicle</span><div class="fw-semibold">' + (me.vehicle_type || me.vehicleType || '') + ' · ' + (me.plate_number || me.plateNumber || '') + '</div></div>' +
+          '<div class="mb-2"><span class="text-muted small">Online</span><div>' + onlineBadge + '</div></div>' +
+          '<div><span class="text-muted small">Application status</span><div>' + appBadge + '</div></div>' +
+          reasonBlock;
       } catch (e) { document.getElementById('profileCard').innerHTML = '<div class="text-danger">' + e.message + '</div>'; }
       try {
         const d = await Api.driver.documents();
         const list = Array.isArray(d) ? d : (d.documents || []);
-        document.getElementById('docs').innerHTML = list.length ? list.map(doc => '<div class="d-flex justify-content-between py-2 border-bottom"><span>' + (doc.type||doc.name||'Document') + '</span><span class="status-badge status-' + ((doc.status||'')==='approved'?'online':'pending') + '">' + (doc.status||'') + '</span></div>').join('') : '<span class="text-muted small">No documents listed.</span>';
+        document.getElementById('docs').innerHTML = list.length
+          ? list.map(doc => {
+              const dtype = (doc.document_type || doc.documentType || doc.type || doc.name || 'Document').replace(/_/g, ' ');
+              const st = doc.status || 'pending';
+              const cls = st === 'approved' ? 'status-online' : (st === 'rejected' ? 'status-offline' : 'status-pending');
+              const rr = doc.rejection_reason || doc.rejectionReason || '';
+              const link = doc.url ? ' <a href="' + doc.url + '" target="_blank" rel="noopener" class="small">View</a>' : '';
+              const reasonLine = rr ? '<div class="small text-danger">Reason: ' + String(rr).replace(/</g,'&lt;') + '</div>' : '';
+              return '<div class="py-2 border-bottom"><div class="d-flex justify-content-between"><span>' + dtype + link + '</span><span class="status-badge ' + cls + '">' + st + '</span></div>' + reasonLine + '</div>';
+            }).join('')
+          : '<span class="text-muted small">No documents listed.</span>';
       } catch (e) { document.getElementById('docs').innerHTML = '<span class="text-muted small">' + e.message + '</span>'; }
     })();
   </script>
