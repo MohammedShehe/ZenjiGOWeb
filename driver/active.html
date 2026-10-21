@@ -27,43 +27,169 @@
       </div>
     </div>
     <div class="app-content">
-      <div class="map-placeholder mb-3"><div class="text-center"><i class="bi bi-geo-alt fs-1"></i><br>Navigation map</div></div>
+      <div id="activeMap" class="mb-3 rounded-3 overflow-hidden border" style="height:320px;min-height:280px;background:#e8f4f3;"></div>
       <div class="card-zenji p-4 mb-3" id="info"><div class="text-center py-3"><div class="spinner-zenji mx-auto"></div></div></div>
       <div class="card-zenji p-4">
         <h6 class="fw-bold mb-3">Update status</h6>
         <div class="d-flex flex-wrap gap-2" id="statusBtns"></div>
+        <p class="small text-muted mt-3 mb-0"><i class="bi bi-geo-alt me-1"></i>Your live location is shared with the rider while this ride is active.</p>
       </div>
     </div>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="../js/config.js"></script><script src="../js/api.js"></script><script src="../js/utils.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/utils.js"></script>
+  <script src="../js/map.js"></script>
   <script>
     if (!requireAuth('driver')) throw new Error('auth');
     const id = new URLSearchParams(location.search).get('id');
     if (!id) location.href = 'requests.html';
+
     const flow = ['arriving', 'arrived', 'started', 'completed'];
-    async function load() {
-      // Driver history may include the ride; or we show based on status updates
-      document.getElementById('info').innerHTML = '<div class="mb-2"><span class="status-badge status-active">Active</span></div><div class="fw-semibold">Ride #' + id + '</div><p class="small text-muted mb-0">Update status as you progress through the trip.</p>';
-      document.getElementById('statusBtns').innerHTML = flow.map(s => '<button class="btn btn-outline-secondary btn-sm" onclick="setStatus(\'' + s + '\')">' + s.charAt(0).toUpperCase() + s.slice(1) + '</button>').join('') +
+    let ride = null;
+    let myPos = null;
+    let mapApi = null;
+    let locTimer = null;
+    let pollTimer = null;
+
+    function markersFromRide() {
+      const list = [];
+      if (ride) {
+        if (ride.pickupLat != null || ride.pickup_lat != null) {
+          list.push({
+            id: 'pickup',
+            lat: Number(ride.pickupLat ?? ride.pickup_lat),
+            lng: Number(ride.pickupLng ?? ride.pickup_lng),
+            label: 'P',
+            title: 'Pickup: ' + (ride.pickupAddress || ride.pickup_address || '')
+          });
+        }
+        if (ride.destinationLat != null || ride.destination_lat != null) {
+          list.push({
+            id: 'dest',
+            lat: Number(ride.destinationLat ?? ride.destination_lat),
+            lng: Number(ride.destinationLng ?? ride.destination_lng),
+            label: 'D',
+            title: 'Destination: ' + (ride.destinationAddress || ride.destination_address || '')
+          });
+        }
+      }
+      if (myPos) {
+        let icon = null;
+        try { if (window.ZenjiMap && ZenjiMap.driverIcon) icon = ZenjiMap.driverIcon('#0d9488'); } catch (_) {}
+        list.push({
+          id: 'me',
+          lat: myPos.lat,
+          lng: myPos.lng,
+          title: 'You (driver)',
+          icon: icon || undefined,
+          label: icon ? undefined : 'D'
+        });
+      }
+      return list;
+    }
+
+    function refreshMap() {
+      if (!mapApi) return;
+      const m = markersFromRide();
+      mapApi.setMarkers(m, { fitBounds: m.length > 1 });
+    }
+
+    async function loadRide() {
+      try {
+        let r = null;
+        if (Api.driver.getRide) {
+          r = await Api.driver.getRide(id);
+        } else {
+          const hist = await Api.driver.history(50);
+          const list = Array.isArray(hist) ? hist : (hist?.rides || hist?.data || []);
+          r = list.find(x => String(x.id) === String(id)) || null;
+        }
+        if (r) {
+          ride = r;
+          const st = (r.status || 'active').toLowerCase();
+          const pickup = r.pickupAddress || r.pickup_address || 'Pickup';
+          const dest = r.destinationAddress || r.destination_address || 'Destination';
+          const fare = r.fare || r.estimatedFare || r.estimated_fare || r.amount;
+          document.getElementById('info').innerHTML =
+            '<div class="d-flex justify-content-between mb-2">' +
+            '<span class="status-badge status-active">' + st + '</span>' +
+            '<strong>' + formatMoney(fare) + '</strong></div>' +
+            '<div class="mb-1"><i class="bi bi-circle-fill text-success me-2" style="font-size:0.5rem"></i>' + pickup + '</div>' +
+            '<div class="mb-2"><i class="bi bi-geo-alt-fill text-danger me-2"></i>' + dest + '</div>' +
+            '<div class="small text-muted">Type: ' + String(r.rideType || r.ride_type || '').toUpperCase() +
+            ' · Ride #' + id + '</div>';
+          refreshMap();
+        } else {
+          document.getElementById('info').innerHTML =
+            '<div class="mb-2"><span class="status-badge status-active">Active</span></div>' +
+            '<div class="fw-semibold">Ride #' + id + '</div>' +
+            '<p class="small text-muted mb-0">Update status as you progress through the trip.</p>';
+        }
+      } catch (e) {
+        document.getElementById('info').innerHTML =
+          '<div class="fw-semibold">Ride #' + id + '</div><p class="small text-muted mb-0">' + (e.message || 'Unable to load ride details') + '</p>';
+      }
+
+      document.getElementById('statusBtns').innerHTML =
+        flow.map(s => '<button class="btn btn-outline-secondary btn-sm" onclick="setStatus(\'' + s + '\')">' +
+          s.charAt(0).toUpperCase() + s.slice(1) + '</button>').join('') +
         '<button class="btn btn-outline-danger btn-sm" onclick="setStatus(\'cancelled\')">Cancel</button>';
     }
+
     async function setStatus(status) {
       try {
         await Api.driver.updateStatus(id, status);
         showToast('Status: ' + status);
         if (status === 'completed' || status === 'cancelled') {
+          clearInterval(locTimer);
+          clearInterval(pollTimer);
           setTimeout(() => location.href = 'history.html', 1000);
+        } else {
+          loadRide();
         }
       } catch (e) { showToast(e.message, 'error'); }
     }
-    // Share location periodically
+
     async function shareLoc() {
-      try { await Api.driver.updateLocation(-6.1659 + Math.random()*0.01, 39.2026 + Math.random()*0.01); } catch {}
+      try {
+        const pos = await ZenjiMap.getCurrentPosition(8000);
+        if (!pos) return;
+        myPos = pos;
+        await Api.driver.updateLocation(pos.lat, pos.lng);
+        refreshMap();
+      } catch (_) {}
     }
-    load();
-    shareLoc();
-    setInterval(shareLoc, 15000);
+
+    (async function init() {
+      await loadRide();
+      try {
+        const center = (ZENJIGO_CONFIG.MAP && ZENJIGO_CONFIG.MAP.DEFAULT_CENTER) || { lat: -6.1659, lng: 39.2026 };
+        const here = await ZenjiMap.getCurrentPosition(6000);
+        mapApi = await ZenjiMap.createMap('activeMap', {
+          center: here || center,
+          zoom: 14,
+          markers: markersFromRide(),
+          fitBounds: true
+        });
+        if (here) {
+          myPos = here;
+          refreshMap();
+        }
+      } catch (e) {
+        console.warn('Map', e.message || e);
+        const box = document.getElementById('activeMap');
+        if (box) box.innerHTML = '<div class="p-4 text-center text-muted small">Map unavailable. Set GOOGLE_MAPS_API_KEY in js/config.js.</div>';
+      }
+      shareLoc();
+      locTimer = setInterval(shareLoc, 12000);
+      pollTimer = setInterval(loadRide, 20000);
+      window.addEventListener('beforeunload', () => {
+        clearInterval(locTimer);
+        clearInterval(pollTimer);
+      });
+    })();
   </script>
   <script src="../js/driver-ui.js"></script>
 </body>
