@@ -156,6 +156,7 @@ const Api = (() => {
     openSupport: () => data('POST', '/rider/chat/support'),
     messages: (id) => data('GET', `/rider/chat/${id}/messages`),
     sendMessage: (id, text) => data('POST', `/rider/chat/${id}/messages`, { body: { text } }),
+    markRead: (id) => data('POST', `/rider/chat/${id}/read`),
     notifications: () => data('GET', '/rider/notifications'),
     markNotificationRead: (id) => data('PATCH', `/rider/notifications/${id}/read`),
     registerFcm: (token, platform = 'web') =>
@@ -214,6 +215,7 @@ const Api = (() => {
     openSupport: () => data('POST', '/driver/chat/support'),
     messages: (id) => data('GET', `/driver/chat/${id}/messages`),
     sendMessage: (id, text) => data('POST', `/driver/chat/${id}/messages`, { body: { text } }),
+    markRead: (id) => data('POST', `/driver/chat/${id}/read`),
     notifications: () => data('GET', '/driver/notifications')
   };
 

@@ -96,4 +96,35 @@
     const s = document.getElementById('appSidebar'), o = document.getElementById('sidebarOverlay');
     s?.classList.toggle('show'); o?.classList.toggle('show', !!s?.classList.contains('show'));
   };
+
+  function setMsgBadge(count) {
+    const link = document.querySelector('.rider-nav a[href="chat.html"]');
+    if (!link) return;
+    let badge = link.querySelector('.nav-msg-badge');
+    const n = Number(count) || 0;
+    if (n > 0 && file !== 'chat.html') {
+      if (!badge) {
+        badge = document.createElement('em');
+        badge.className = 'nav-msg-badge';
+        badge.style.cssText = 'display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;margin-left:auto;border-radius:999px;background:#16a085;color:#fff;font-size:.68rem;font-weight:700;font-style:normal';
+        link.appendChild(badge);
+      }
+      badge.textContent = n > 99 ? '99+' : String(n);
+    } else if (badge) badge.remove();
+  }
+  async function refreshMsgBadge() {
+    if (file === 'chat.html') { setMsgBadge(0); return; }
+    if (!window.Api || !Api.rider || typeof Api.rider.conversations !== 'function') return;
+    try {
+      const list = await Api.rider.conversations();
+      const arr = Array.isArray(list) ? list : [];
+      const unread = arr.reduce((s, c) => s + (Number(c.unreadCount || c.unread_count || 0) || 0), 0);
+      setMsgBadge(unread);
+    } catch (_) {}
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(refreshMsgBadge, 400);
+    setInterval(refreshMsgBadge, 45000);
+  });
+
 })();
