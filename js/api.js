@@ -196,10 +196,12 @@ const Api = (() => {
       if (to) q.push(`to=${to}`);
       return data('GET', `/driver/earnings${q.length ? '?' + q.join('&') : ''}`);
     },
-    settle: (provider = 'example') =>
-      data('POST', '/driver/settlements', { body: { provider } }),
-    markSettlementPaid: (id, externalReference) =>
-      data('POST', `/driver/settlements/${id}/mark-paid`, { body: { externalReference } }),
+    // Starts a mobile-money charge for the commission owed. Poll settlementStatus() —
+    // the settlement is only 'paid' once the payment provider confirms it.
+    settle: (opts = {}) =>
+      data('POST', '/driver/settlements', { body: opts }),
+    settlements: () => data('GET', '/driver/settlements'),
+    settlementStatus: (id) => data('GET', `/driver/settlements/${id}`),
     autopay: (enabled, provider, providerToken) =>
       data('POST', '/driver/autopay', {
         body: { enabled, ...(provider ? { provider } : {}), ...(providerToken ? { providerToken } : {}) }

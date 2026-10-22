@@ -33,6 +33,15 @@
         <div class="col-md-4"><div class="card-zenji p-4"><div class="small text-muted">Available</div><h3 class="fw-bold" id="available">—</h3></div></div>
         <div class="col-md-4"><div class="card-zenji p-4"><div class="small text-muted">Pending settlement</div><h3 class="fw-bold" id="pending">—</h3></div></div>
       </div>
+      <div class="card-zenji p-4 mb-4" id="settleCard" style="display:none">
+        <h6 class="fw-bold mb-1">Commission settlement</h6>
+        <p class="small text-muted mb-3" id="settleMsg"></p>
+        <div class="row g-2 align-items-end">
+          <div class="col-md-5"><label class="form-label small">Mobile-money number</label><input type="tel" id="settlePhone" class="form-control" placeholder="e.g. 0712 345 678"></div>
+          <div class="col-md-4"><button class="btn btn-primary-zenji" id="settleBtn" onclick="payCommission()">Pay commission</button></div>
+        </div>
+        <div class="small mt-2" id="settleState"></div>
+      </div>
       <div class="card-zenji p-4 mb-4">
         <h6 class="fw-bold mb-3">Request payout</h6>
         <div class="row g-2 align-items-end">
@@ -53,6 +62,41 @@
   <script src="../js/config.js"></script><script src="../js/api.js"></script><script src="../js/utils.js"></script>
   <script>
     if (!requireAuth('driver')) throw new Error('auth');
+    let settleTimer = null;
+    function renderSettlement(f) {
+      const card = document.getElementById('settleCard');
+      const owed = Number(f.commissionOwed || 0);
+      const active = f.activeSettlement;
+      if (owed <= 0 && !active) { card.style.display = 'none'; return; }
+      card.style.display = '';
+      document.getElementById('settleMsg').textContent =
+        'You owe ZenjiGO ' + formatMoney(owed) + ' commission. You can go online again once the payment is confirmed.';
+      const processing = active && active.status === 'processing';
+      document.getElementById('settleBtn').disabled = processing;
+      document.getElementById('settleState').textContent = processing
+        ? 'Waiting for payment confirmation — approve the prompt on your phone…' : '';
+      if (processing && !settleTimer) pollSettlement(active.id);
+    }
+    function pollSettlement(id) {
+      let tries = 0;
+      settleTimer = setInterval(async () => {
+        tries++;
+        try {
+          const s = await Api.driver.settlementStatus(id);
+          if (s.status === 'paid') { clearInterval(settleTimer); settleTimer = null; showToast('Payment confirmed. Thank you!'); load(); }
+          else if (s.status === 'failed') { clearInterval(settleTimer); settleTimer = null; showToast('Payment failed or expired. Please try again.', 'error'); load(); }
+        } catch {}
+        if (tries >= 60) { clearInterval(settleTimer); settleTimer = null; }
+      }, 5000);
+    }
+    async function payCommission() {
+      const phone = document.getElementById('settlePhone').value.trim();
+      try {
+        const r = await Api.driver.settle(phone ? { phone } : {});
+        showToast(r.message || 'Check your phone to confirm the payment');
+        await load();
+      } catch (e) { showToast(e.message, 'error'); }
+    }
     async function load() {
       try {
         const e = await Api.driver.earnings();
@@ -62,6 +106,7 @@
       } catch {}
       try {
         const f = await Api.driver.finance();
+        renderSettlement(f);
         document.getElementById('finance').innerHTML = '<pre class="small mb-0" style="white-space:pre-wrap">' + JSON.stringify(f, null, 2) + '</pre>';
       } catch (e) { document.getElementById('finance').innerHTML = '<span class="text-muted small">' + e.message + '</span>'; }
     }
