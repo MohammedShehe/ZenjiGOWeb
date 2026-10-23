@@ -31,7 +31,7 @@ Professional, fully responsive web version of ZenjiGO for both **Riders** and **
 Default API base:
 
 ```
-http://localhost:5000/api/v1
+https://zenjigo-backend.onrender.com/api/v1
 ```
 
 Change it in the browser console or by editing `js/config.js`:
@@ -91,7 +91,7 @@ zenjigo-web/
 
 ## API endpoint configuration
 
-The website defaults to the same-origin `/api/v1` when hosted on a non-local domain, and to `http://localhost:5000/api/v1` for local development. If the website and API are hosted separately, set the exact reachable backend URL before using the API:
+The website defaults to the same-origin `/api/v1` when hosted on a non-local domain, and to `https://zenjigo-backend.onrender.com/api/v1` for local development. If the website and API are hosted separately, set the exact reachable backend URL before using the API:
 
 ```js
 localStorage.setItem('zenjigo_api_base', 'https://YOUR-BACKEND-HOST/api/v1');

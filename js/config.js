@@ -7,7 +7,7 @@ var ZENJIGO_CONFIG = window.ZENJIGO_CONFIG = {
     // port than the API. Do not accidentally call <frontend-origin>/api/v1.
     const isLocalHost = ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
     const defaultBase = isLocalHost || location.protocol === 'file:'
-      ? 'http://localhost:5000/api/v1'
+      ? 'https://zenjigo-backend.onrender.com/api/v1'
       : location.origin + '/api/v1';
     const candidate = saved || defaultBase;
     try {
