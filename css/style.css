@@ -718,3 +718,30 @@ body[data-theme="dark"] .alert-warning{background:#44371f;color:#ffdf9b;border-c
 body[data-theme="dark"] .text-bg-light{background:var(--ui-surface-muted)!important;color:var(--ui-text)!important}
 body[data-theme="dark"] .form-check-input{background-color:#14232e;border-color:#38505f}
 @media(max-width:380px){.app-topbar .btn{font-size:.78rem;padding:.42rem .55rem}.card-number{letter-spacing:1px}.card-bottom{font-size:.6rem}.card-bottom strong{font-size:.68rem}}
+
+
+/* Accessibility fix: keep ride-type names readable in both themes.
+   The cards remain white in light mode and use the dark surface in dark mode. */
+body[data-theme="dark"] .ride-type-card,
+html[data-bs-theme="dark"] body .ride-type-card,
+body[data-bs-theme="dark"] .ride-type-card {
+  background: #203541 !important;
+  color: #f3f8fb !important;
+  border-color: #38505f;
+}
+body[data-theme="dark"] .ride-type-card .small,
+html[data-bs-theme="dark"] body .ride-type-card .small,
+body[data-bs-theme="dark"] .ride-type-card .small {
+  color: #f3f8fb !important;
+}
+body[data-theme="dark"] .ride-type-card i,
+html[data-bs-theme="dark"] body .ride-type-card i,
+body[data-bs-theme="dark"] .ride-type-card i {
+  color: #31d0c6 !important;
+}
+body[data-theme="dark"] .ride-type-card.active,
+html[data-bs-theme="dark"] body .ride-type-card.active,
+body[data-bs-theme="dark"] .ride-type-card.active {
+  background: #183b46 !important;
+  border-color: #31d0c6 !important;
+}
