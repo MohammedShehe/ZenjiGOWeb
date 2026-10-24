@@ -99,6 +99,8 @@ const Api = (() => {
       data('POST', '/auth/driver/send-otp', { body: { phone, email, purpose }, auth: false }),
     sendDriverRegistrationOtp: (email) =>
       data('POST', '/auth/driver/send-email-otp', { body: { email, purpose: 'driver_registration' }, auth: false }),
+    verifyDriverRegistrationOtp: (email, code) =>
+      data('POST', '/auth/driver/verify-otp', { body: { target: email, code, purpose: 'driver_registration' }, auth: false }),
     loginDriver: (phone, email, code) =>
       data('POST', '/auth/driver/login', { body: { phone, email, code }, auth: false }),
     refresh: (refreshToken) =>
@@ -178,7 +180,10 @@ const Api = (() => {
       return data('POST', '/driver/register', { body: form, auth: false, isForm: true });
     },
     me: () => data('GET', '/driver/me'),
+    applicationStatus: (driverId) => data('GET', `/driver/application-status/${encodeURIComponent(driverId)}`, { auth: false }),
     documents: () => data('GET', '/driver/documents'),
+    placesAutocomplete: (input) => data('GET', `/driver/places/autocomplete?input=${encodeURIComponent(input)}`, { auth: false }),
+    placeDetails: (placeId) => data('GET', `/driver/places/details?placeId=${encodeURIComponent(placeId)}`, { auth: false }),
     setOnline: (online) => data('PATCH', '/driver/online', { body: { online } }),
     updateLocation: (lat, lng, heading, speed) =>
       data('POST', '/driver/location', {

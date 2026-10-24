@@ -136,14 +136,20 @@
           el.innerHTML = '<div class="text-center py-4 text-muted small">No pending requests. Go online to receive rides.</div>';
           return;
         }
-        el.innerHTML = list.slice(0, 5).map(r => `
-          <div class="px-3 py-3 border-bottom d-flex justify-content-between align-items-center">
-            <div>
-              <div class="fw-semibold small">${r.pickupAddress || 'Pickup'} → ${r.destinationAddress || 'Drop-off'}</div>
-              <div class="text-muted" style="font-size:0.75rem">${(r.rideType||'').toUpperCase()} · ${formatMoney(r.fare || r.estimatedFare)}</div>
-            </div>
-            <button class="btn btn-aqua btn-sm" onclick="accept('${r.id}')">Accept</button>
-          </div>`).join('');
+        const val = (obj, ...keys) => { for (const k of keys) if (obj && obj[k] != null && obj[k] !== '') return obj[k]; return ''; };
+        const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+        el.innerHTML = list.slice(0, 5).map(r => {
+          const id = val(r, 'id', 'rideId');
+          const pickup = val(r, 'pickupAddress', 'pickup_address') || 'Pickup location';
+          const dropoff = val(r, 'destinationAddress', 'destination_address', 'dropoffAddress', 'dropoff_address') || 'Drop-off location';
+          const type = val(r, 'rideType', 'ride_type');
+          const fare = val(r, 'fare', 'final_fare', 'finalFare', 'estimated_fare', 'estimatedFare');
+          return `<div class="px-3 py-3 border-bottom d-flex justify-content-between align-items-center">
+            <div><div class="fw-semibold small">${esc(pickup)} → ${esc(dropoff)}</div>
+              <div class="text-muted" style="font-size:0.75rem">${esc(String(type).toUpperCase())} · ${formatMoney(fare || 0)}</div></div>
+            <button class="btn btn-aqua btn-sm" onclick="accept('${esc(id)}')">Accept</button>
+          </div>`;
+        }).join('');
       } catch (e) {
         document.getElementById('requests').innerHTML = `<div class="text-center py-4 text-muted small">${e.message}</div>`;
       }
@@ -158,13 +164,27 @@
     }
 
     async function loadEarnings() {
+      const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Dar_es_Salaam', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
       try {
-        const e = await Api.driver.earnings();
-        document.getElementById('todayEarn').textContent = formatMoney(e.today || e.todayEarnings || e.total || 0);
-        document.getElementById('rideCount').textContent = e.ridesToday || e.count || e.completed || '—';
-      } catch {
-        document.getElementById('todayEarn').textContent = 'TZS 0';
-        document.getElementById('rideCount').textContent = '0';
+        const [e, ridesResponse] = await Promise.all([Api.driver.earnings(), Api.driver.history(100)]);
+        const days = Array.isArray(e.days) ? e.days : [];
+        const todayRow = days.find(d => String(d.day || d.date || '').slice(0, 10) === todayKey) || null;
+        const rides = Array.isArray(ridesResponse) ? ridesResponse : (ridesResponse.rides || ridesResponse.items || ridesResponse.data || []);
+        const completed = rides.filter(r => String(r.status || '').toLowerCase() === 'completed');
+        const todayRides = completed.filter(r => {
+          const raw = r.completed_at || r.completedAt || r.created_at || r.createdAt;
+          if (!raw) return false;
+          const date = new Date(raw);
+          if (Number.isNaN(date.getTime())) return false;
+          return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Dar_es_Salaam', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date) === todayKey;
+        });
+        const todayAmount = todayRow ? (todayRow.driver_share ?? todayRow.driverShare ?? todayRow.gross ?? 0) : 0;
+        document.getElementById('todayEarn').textContent = formatMoney(todayAmount);
+        document.getElementById('rideCount').textContent = String(todayRow ? (todayRow.rides ?? todayRides.length) : todayRides.length);
+      } catch (err) {
+        console.error('Could not load driver earnings/history:', err);
+        document.getElementById('todayEarn').textContent = '—';
+        document.getElementById('rideCount').textContent = '—';
       }
     }
 

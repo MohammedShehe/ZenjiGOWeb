@@ -17,7 +17,7 @@
     .upload-card .form-control{font-size:.9rem}.file-preview{display:flex;align-items:center;gap:10px;min-height:58px;margin-top:12px;padding:9px 11px;border:1px dashed var(--bs-border-color);border-radius:11px;color:var(--bs-secondary-color);font-size:.82rem;overflow-wrap:anywhere}
     .file-preview>i{font-size:1.35rem;color:#16a085;flex-shrink:0}.file-preview img{width:58px;height:58px;object-fit:cover;border-radius:8px;border:1px solid var(--bs-border-color)}.file-preview .preview-meta{min-width:0;display:flex;flex-direction:column;gap:3px}.preview-name{font-weight:650;color:var(--bs-emphasis-color);word-break:break-word}.preview-size{font-size:.75rem;color:var(--bs-secondary-color)}.preview-remove{margin-left:auto;border:0;background:transparent;color:#dc3545;padding:5px 8px;border-radius:8px}.preview-remove:hover{background:rgba(220,53,69,.1)}
     .vehicle-preview-grid{display:flex;flex-wrap:wrap;gap:10px}.vehicle-preview-grid .vehicle-preview-item{display:flex;align-items:center;gap:8px;padding:6px;border:1px solid var(--bs-border-color);border-radius:10px}.vehicle-preview-item img{width:50px;height:50px}.vehicle-preview-item .preview-meta{max-width:170px}
-    #btnSubmit{min-height:48px;padding:12px 22px;border-radius:12px;font-weight:700}
+    #btnSubmit{min-height:48px;padding:12px 22px;border-radius:12px;font-weight:700}.driver-stepper{display:flex;gap:8px;margin:16px 0 22px}.driver-stepper .step-chip{flex:1;padding:9px 6px;border-radius:10px;background:var(--bs-tertiary-bg);color:var(--bs-secondary-color);font-size:.78rem;text-align:center;font-weight:700}.driver-stepper .step-chip.active{background:rgba(22,160,133,.14);color:#118675}.driver-step-panel{display:none}.driver-step-panel.active{display:block}.driver-step-actions{display:flex;gap:10px;margin-top:18px}.driver-step-actions button{flex:1;min-height:46px;border-radius:11px}
     @media(max-width:575px){.document-section-heading{align-items:flex-start;flex-direction:column}.upload-card{padding:13px}.driver-registration-card{width:calc(100% - 20px)}}
   </style>
 
@@ -27,6 +27,7 @@
     <div class="auth-card driver-registration-card" style="max-width:900px">
       <div class="logo">Zenji<span>GO</span></div>
       <p class="text-center text-muted mb-4">Driver registration</p>
+      <div class="driver-stepper" id="driverStepper"><div class="step-chip active">1. Personal</div><div class="step-chip">2. Vehicle</div><div class="step-chip">3. Documents</div><div class="step-chip">4. Review</div></div>
       <form id="regForm" onsubmit="submitReg(event)">
         <div class="row g-3">
           <div class="col-md-6">
@@ -50,7 +51,7 @@
           </div>
           <div class="col-12">
             <label class="form-label small fw-semibold">Home address</label>
-            <input name="homeAddress" class="form-control">
+            <div class="position-relative"><input name="homeAddress" id="homeAddress" class="form-control" autocomplete="off" required placeholder="Start typing your home address"><div class="form-text">Choose a suggested address from Google Maps.</div><div id="homeAddressSuggestions" class="list-group position-absolute w-100 shadow-sm d-none" style="z-index:1080;max-height:240px;overflow:auto"></div></div>
           </div>
           <div class="col-md-4">
             <label class="form-label small fw-semibold">Vehicle type *</label>
@@ -91,21 +92,21 @@
             <div class="upload-card">
               <label class="form-label fw-semibold" for="licenseFile">Driving license <span class="text-danger">*</span></label>
               <input id="licenseFile" type="file" name="license" class="form-control document-input" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf" required data-preview="licensePreview">
-              <div class="form-text">JPG, PNG, WEBP or PDF · max size set by server</div><div class="file-preview" id="licensePreview"><i class="bi bi-cloud-arrow-up"></i><span>No file selected</span></div>
+              <label class="form-label fw-semibold mt-3" for="licenseExpiry">Driving license expiry date <span class="text-danger">*</span></label><input id="licenseExpiry" name="licenseExpiry" type="date" class="form-control expiry-date" required><div class="form-text">Enter the expiry date printed on the document.</div><div class="form-text">JPG, PNG, WEBP or PDF · max size set by server</div><div class="file-preview" id="licensePreview"><i class="bi bi-cloud-arrow-up"></i><span>No file selected</span></div>
             </div>
           </div>
           <div class="col-md-6">
             <div class="upload-card">
               <label class="form-label fw-semibold" for="nationalIdFile">National ID document <span class="text-danger">*</span></label>
-              <input id="nationalIdFile" type="file" name="nationalIdFile" class="form-control document-input" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf" required data-preview="nationalIdPreview">
-              <div class="form-text">Upload a clear photo or scan of your ID.</div><div class="file-preview" id="nationalIdPreview"><i class="bi bi-cloud-arrow-up"></i><span>No file selected</span></div>
+              <input id="nationalIdFile" type="file" name="nationalIdFile" class="form-control document-input" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf" multiple required data-preview="nationalIdPreview">
+              <label class="form-label fw-semibold mt-3" for="nationalIdExpiry">National ID expiry date <span class="text-danger">*</span></label><input id="nationalIdExpiry" name="nationalIdExpiry" type="date" class="form-control expiry-date" required><div class="form-text">If your ID has no expiry date, use the date shown on the document or confirm the correct policy with ZenjiGO support.</div><div class="form-text">Upload a clear photo or scan of your ID.</div><div class="file-preview" id="nationalIdPreview"><i class="bi bi-cloud-arrow-up"></i><span>No file selected</span></div>
             </div>
           </div>
           <div class="col-md-6">
             <div class="upload-card">
               <label class="form-label fw-semibold" for="insuranceFile">Vehicle insurance <span class="text-danger">*</span></label>
               <input id="insuranceFile" type="file" name="insurance" class="form-control document-input" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf" required data-preview="insurancePreview">
-              <div class="form-text">Make sure the policy details are readable.</div><div class="file-preview" id="insurancePreview"><i class="bi bi-cloud-arrow-up"></i><span>No file selected</span></div>
+              <label class="form-label fw-semibold mt-3" for="insuranceExpiry">Vehicle insurance expiry date <span class="text-danger">*</span></label><input id="insuranceExpiry" name="insuranceExpiry" type="date" class="form-control expiry-date" required><div class="form-text">Enter the policy expiry date.</div><div class="form-text">Make sure the policy details are readable.</div><div class="file-preview" id="insurancePreview"><i class="bi bi-cloud-arrow-up"></i><span>No file selected</span></div>
             </div>
           </div>
           <div class="col-md-6">
@@ -127,12 +128,14 @@
             <label class="form-label small fw-semibold">Email verification code *</label>
             <div class="input-group">
               <input name="emailOtpCode" class="form-control" required placeholder="Enter OTP sent to your email">
-              <button type="button" class="btn btn-outline-secondary" id="btnOtp" onclick="sendRegOtp()">Send OTP</button>
+              <button type="button" class="btn btn-outline-secondary" id="btnOtp" onclick="sendRegOtp()">Send OTP</button><button type="button" class="btn btn-outline-success" id="btnVerifyOtp" onclick="verifyRegOtp()">Verify</button>
             </div>
-            <div class="form-text">A verification code will be sent to the email address entered above.</div>
+            <div class="form-text">A verification code will be sent to the email address entered above.</div><div id="registrationOtpStatus" class="form-text text-warning">Email not verified yet. Verify your email to continue to Step 2.</div>
           </div>
 
           <div class="col-12">
+            <div id="registrationReview" class="border rounded-3 p-3 mb-3 bg-body-tertiary"><h6 class="fw-bold">Review application</h6><p class="small text-muted mb-0">Review your personal details, vehicle, documents and expiry dates before submitting.</p><div id="reviewSummary" class="small mt-2"></div></div>
+            <div class="form-check mb-3"><input class="form-check-input" type="checkbox" id="acceptedTerms" required><label class="form-check-label" for="acceptedTerms">I confirm the information is accurate and the uploaded documents are current.</label></div>
             <button type="submit" class="btn btn-primary-zenji" id="btnSubmit">Submit registration</button>
           </div>
         </div>
@@ -199,6 +202,107 @@
     updateDocumentCount();
 
     fillCountrySelect(document.getElementById('countryCode'), '+255');
+    let registrationOtpVerified = false;
+    const registrationEmailInput = document.querySelector('[name="email"]');
+    const registrationOtpInput = document.querySelector('[name="emailOtpCode"]');
+    function resetRegistrationOtpVerification() {
+      registrationOtpVerified = false;
+      registrationOtpInput.dataset.verified = 'false';
+      const status = document.getElementById('registrationOtpStatus');
+      if (status) { status.textContent = 'Email not verified yet.'; status.className = 'form-text text-warning'; }
+    }
+    registrationEmailInput.addEventListener('input', resetRegistrationOtpVerification);
+    registrationOtpInput.addEventListener('input', resetRegistrationOtpVerification);
+    
+    document.querySelectorAll('.expiry-date').forEach(input => { input.min = new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10); });
+    async function verifyRegOtp() {
+      const email=document.querySelector('[name="email"]').value.trim().toLowerCase();
+      const code=document.querySelector('[name="emailOtpCode"]').value.trim();
+      if(!email || !code){showToast('Enter your email and OTP code first.','error');return;}
+      const btn=document.getElementById('btnVerifyOtp');setLoading(btn,true);
+      try {
+        await Api.auth.verifyDriverRegistrationOtp(email,code);
+        registrationOtpVerified=true;document.querySelector('[name="emailOtpCode"]').dataset.verified='true';
+        const status=document.getElementById('registrationOtpStatus');if(status){status.textContent='Email verified successfully. You can continue to Step 2.';status.className='form-text text-success';}
+        showToast('Email verified successfully.');
+      } catch(e){registrationOtpVerified=false;showToast(e.message||'OTP verification failed.','error');}
+      finally{setLoading(btn,false);}
+    }
+    // Backend-backed Places autocomplete is the same endpoint used by the Flutter driver app.
+    (function wireAddressAutocomplete(){
+      const input=document.getElementById('homeAddress'), box=document.getElementById('homeAddressSuggestions');
+      let timer=null,seq=0;
+      function close(){box.classList.add('d-none');box.replaceChildren();}
+      input.addEventListener('input',()=>{
+        input.dataset.placeId='';clearTimeout(timer);const q=input.value.trim(),id=++seq;
+        if(q.length<2){close();return;}
+        timer=setTimeout(async()=>{
+          try{
+            const payload=await Api.driver.placesAutocomplete(q);
+            if(id!==seq)return;
+            const predictions=Array.isArray(payload)?payload:(payload.predictions||payload.items||[]);
+            box.replaceChildren();
+            predictions.forEach(item=>{
+              const label=item.description||item.fullText||item.formattedAddress||item.name||'';
+              if(!label)return;
+              const b=document.createElement('button');b.type='button';b.className='list-group-item list-group-item-action text-start';b.textContent=label;
+              b.addEventListener('click',()=>{
+                // Keep the human-readable Google Places suggestion (e.g. "Fuoni Kisimani, Zanzibar, Tanzania").
+                // Place Details can return a plus code as formattedAddress; do not overwrite the selected label.
+                input.value=label;
+                input.dataset.placeId=item.place_id||item.placeId||'';
+                close();
+              });box.appendChild(b);
+            });
+            box.classList.toggle('d-none',!box.children.length);
+          }catch(_){close();}
+        },280);
+      });
+      document.addEventListener('click',e=>{if(e.target!==input&&!box.contains(e.target))close();});
+    })();
+    // Four-step presentation mirrors the native driver registration wizard.
+    (function setupDriverWizard(){
+      const form=document.getElementById('regForm'), row=form.querySelector('.row');
+      const original=Array.from(row.children), panels=[];
+      const panelNames=['Personal details','Vehicle details','Documents & photos','Review application'];
+      const panelNodes=panelNames.map((title,i)=>{const p=document.createElement('section');p.className='driver-step-panel'+(i===0?' active':'');p.dataset.step=String(i);const h=document.createElement('h5');h.className='fw-bold mb-3';h.textContent=title;p.appendChild(h);const r=document.createElement('div');r.className='row g-3';p.appendChild(r);row.appendChild(p);panels.push(r);return p;});
+      const stepFor=el=>{
+        const names=Array.from(el.querySelectorAll('[name]')).map(x=>x.name);
+        if(names.some(n=>['fullName','phoneLocal','email','nationalId','homeAddress','emailOtpCode'].includes(n)))return 0;
+        if(names.some(n=>['vehicleType','plateNumber','vehicleMake','vehicleModel','vehicleColor','modelYear'].includes(n)))return 1;
+        if(el.querySelector('.document-section-heading')||names.some(n=>['license','nationalIdFile','insurance','driverPhoto','vehiclePhotos'].includes(n)))return 2;
+        return 3;
+      };
+      original.forEach(el=>{const step=stepFor(el);panels[step].appendChild(el);});
+      const actions=document.createElement('div');actions.className='driver-step-actions';actions.innerHTML='<button type="button" class="btn btn-outline-secondary" id="driverPrev">Back</button><button type="button" class="btn btn-primary-zenji" id="driverNext">Continue</button>';
+      form.appendChild(actions);
+      let current=0;
+      const chips=Array.from(document.querySelectorAll('#driverStepper .step-chip'));
+      function render(){
+        panelNodes.forEach((p,i)=>p.classList.toggle('active',i===current));
+        chips.forEach((c,i)=>c.classList.toggle('active',i===current));
+        document.getElementById('driverPrev').style.visibility=current===0?'hidden':'visible';
+        document.getElementById('driverNext').textContent=current===3?'Submit application':'Continue';
+        document.getElementById('btnSubmit').classList.toggle('d-none',current!==3);
+        if(current===3)updateReview();
+      }
+      function updateReview(){
+        const names=['fullName','email','homeAddress','vehicleType','plateNumber','vehicleMake','vehicleModel','vehicleColor','modelYear'];
+        document.getElementById('reviewSummary').innerHTML=names.map(n=>{const el=form.elements.namedItem(n);const label=({fullName:'Name',email:'Email',homeAddress:'Home address',vehicleType:'Vehicle type',plateNumber:'Plate number',vehicleMake:'Make',vehicleModel:'Model',vehicleColor:'Color',modelYear:'Year'})[n];return '<div class="d-flex justify-content-between gap-3 py-1"><span class="text-muted">'+label+'</span><strong class="text-end"></strong></div>';}).map((html,i)=>{const temp=document.createElement('div');temp.innerHTML=html;temp.querySelector('strong').textContent=form.elements.namedItem(names[i]).value||'—';return temp.innerHTML;}).join('')+'<div class="mt-2">Expiry dates: License '+(form.licenseExpiry.value||'—')+' · National ID '+(form.nationalIdExpiry.value||'—')+' · Insurance '+(form.insuranceExpiry.value||'—')+'</div>';
+      }
+      document.getElementById('driverPrev').addEventListener('click',()=>{if(current>0){current--;render();}});
+      document.getElementById('driverNext').addEventListener('click',()=>{
+        if(current===0||current===1){const fields=Array.from(panelNodes[current].querySelectorAll('input,select')).filter(x=>x.required);for(const f of fields){if(!f.reportValidity())return;}}
+        if(current===0&&!registrationOtpVerified){showToast('Complete email OTP verification in Step 1 before continuing.','error');document.querySelector('[name="emailOtpCode"]').focus();return;}
+        if(current===2){
+          const req=Array.from(panelNodes[2].querySelectorAll('input[required]'));
+          for(const f of req){if(f.type==='file'&&!f.files.length){f.reportValidity();return;}if(f.type==='date'&&(!f.value||f.value<new Date().toISOString().slice(0,10))){f.setCustomValidity('Enter a valid future expiry date.');f.reportValidity();f.setCustomValidity('');return;}}
+          if(!registrationOtpVerified){showToast('Verify your email OTP before continuing.','error');return;}
+        }
+        if(current<3){current++;render();}else form.requestSubmit();
+      });
+      render();
+    })();
 
     async function sendRegOtp() {
       const email = document.querySelector('[name="email"]').value.trim().toLowerCase();
@@ -238,12 +342,12 @@
         vehicleModel: form.vehicleModel.value.trim(),
         vehicleColor: form.vehicleColor.value.trim(),
         modelYear: form.modelYear.value || '',
-        emailOtpCode: form.emailOtpCode.value.trim()
+        emailOtpCode: form.emailOtpCode.value.trim(), expires_license: form.licenseExpiry.value, expires_nationalId: form.nationalIdExpiry.value, expires_insurance: form.insuranceExpiry.value
       };
 
       const files = {
         license: form.elements.namedItem('license').files[0],
-        nationalIdFile: form.elements.namedItem('nationalIdFile').files[0],
+        nationalIdFile: Array.from(form.elements.namedItem('nationalIdFile').files),
         insurance: form.elements.namedItem('insurance').files[0],
         driverPhoto: form.elements.namedItem('driverPhoto').files[0],
         vehiclePhotos: Array.from(form.elements.namedItem('vehiclePhotos').files).slice(0, 5)
@@ -263,12 +367,20 @@
         return;
       }
 
+      if (!registrationOtpVerified) { showToast('Verify your email OTP before submitting.', 'error'); return; }
+      for (const id of ['licenseExpiry','nationalIdExpiry','insuranceExpiry']) {
+        const el=document.getElementById(id);
+        if(!el.value || el.value < new Date().toISOString().slice(0,10)){showToast('Enter valid future expiry dates for all required documents.','error');el.focus();return;}
+      }
       const btn = document.getElementById('btnSubmit');
       setLoading(btn, true);
       try {
-        await Api.driver.register(fields, files);
-        showToast('Registration submitted! Await approval.');
-        setTimeout(function () { location.href = 'login.html'; }, 1500);
+        const result = await Api.driver.register(fields, files);
+        const driverId = result.driverId || result.driver_id || result.id || '';
+        showToast('Registration submitted successfully.');
+        setTimeout(function () {
+          location.href = 'application-status.html?driverId=' + encodeURIComponent(driverId) + '&email=' + encodeURIComponent(fields.email);
+        }, 500);
       } catch (err) {
         showToast(err.message || 'Registration failed', 'error');
       } finally {

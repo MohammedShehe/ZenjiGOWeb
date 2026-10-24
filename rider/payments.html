@@ -37,6 +37,11 @@
   <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
   <aside class="app-sidebar" id="appSidebar"><div class="brand">Zenji<span>GO</span></div><nav class="mt-2"></nav></aside>
   <div class="app-main">
+    <div id="signupPaymentBanner" class="d-none alert alert-info mx-3 mt-3 mb-0 d-flex flex-wrap align-items-center justify-content-between gap-2">
+      <span><i class="bi bi-credit-card me-1"></i> Add a payment method now, or skip and do it later — same as the app.</span>
+      <a class="btn btn-sm btn-outline-primary" href="dashboard.html">Skip for now</a>
+    </div>
+
     <div class="app-topbar">
       <div class="d-flex align-items-center gap-2">
         <button class="btn btn-link d-lg-none p-0" onclick="toggleSidebar()" aria-label="Open navigation"><i class="bi bi-list fs-3"></i></button>
@@ -190,4 +195,15 @@
     setType();load();
   </script>
   <script src="../js/rider-ui.js"></script>
+<script>
+  (function(){
+    try {
+      const q = new URLSearchParams(location.search);
+      if (q.get('from') === 'signup') {
+        const b = document.getElementById('signupPaymentBanner');
+        if (b) b.classList.remove('d-none');
+      }
+    } catch(_){}
+  })();
+</script>
 </body></html>

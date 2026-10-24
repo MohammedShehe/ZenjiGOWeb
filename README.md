@@ -109,3 +109,21 @@ The backend must allow the website's exact origin in `CORS_ORIGINS`, and its `/h
 
 ### Payment security note
 The browser-side card form deliberately sends only card label/brand, expiry, and last four digits; it never sends or stores the full card number or CVV. This is a polished UI flow, not a substitute for a PCI-compliant payment provider/tokenization integration. To actually charge cards, integrate a hosted/tokenized provider and save its payment-method token server-side. Mobile-money and bank-account flows also depend on backend support and provider verification.
+
+
+## Rider and driver registration parity updates
+
+- Rider registration now mirrors the mobile location hierarchy: island, Google Places region/area suggestions, administrative region, district, and ward. On successful signup, the selected location is saved to the rider profile and, when Google Places returns coordinates, as the rider's Home saved location.
+- Driver registration is presented as a four-step wizard (personal details, vehicle details, documents, review), with backend-backed home-address suggestions, email OTP verification, and required future expiry dates for license, national ID, and insurance.
+- Driver registration submits expiry values as `expires_license`, `expires_nationalId`, and `expires_insurance`, matching the Flutter driver's `expires_<documentKey>` multipart fields.
+- The web client uses the configured `API_BASE`. The driver address suggestions use `/driver/places/autocomplete` and `/driver/places/details`, the same backend routes used by the Flutter driver app.
+- Google Maps suggestions on the rider side use `MAP.GOOGLE_MAPS_API_KEY` in `js/config.js`. Restrict this browser key by HTTP referrer and enable Maps JavaScript API and Places API in Google Cloud Console.
+
+These are client-side parity updates. Live API integration, OTP delivery, Google key restrictions, and document upload limits must still be validated in the deployed environment.
+
+
+## Driver ride data compatibility fix
+
+- Dashboard and ride history now read both API snake_case fields (`pickup_address`, `destination_address`, `ride_type`, `completed_at`) and camelCase aliases.
+- Dashboard earnings and completed-ride metrics are derived from the backend `/driver/earnings` daily rows and `/driver/rides` history response instead of expecting unsupported `today`/`ridesToday` fields.
+- Empty/error states display a dash instead of falsely reporting zero when the endpoint fails.

@@ -37,11 +37,22 @@
     if (!requireAuth('driver')) throw new Error('auth');
     (async () => {
       try {
-        const rides = await Api.driver.history();
-        const list = Array.isArray(rides) ? rides : [];
+        const response = await Api.driver.history(100);
+        const list = Array.isArray(response) ? response : (response.rides || response.items || response.data || []);
         const el = document.getElementById('list');
         if (!list.length) { el.innerHTML = '<div class="text-center py-5 text-muted">No rides yet.</div>'; return; }
-        el.innerHTML = list.map(r => '<div class="d-flex justify-content-between px-3 py-3 border-bottom"><div><div class="fw-semibold">' + (r.pickupAddress||'Pickup') + ' → ' + (r.destinationAddress||'Drop-off') + '</div><div class="small text-muted">' + formatDate(r.createdAt||r.created_at) + ' · ' + (r.rideType||'') + '</div></div><div class="text-end"><div class="fw-semibold">' + formatMoney(r.fare||r.driverEarning||r.amount) + '</div><span class="status-badge status-' + ((r.status||'')==='completed'?'online':'pending') + '">' + (r.status||'') + '</span></div></div>').join('');
+        const val = (obj, ...keys) => { for (const k of keys) if (obj && obj[k] != null && obj[k] !== '') return obj[k]; return ''; };
+        const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+        el.innerHTML = list.map(r => {
+          const pickup = val(r, 'pickupAddress', 'pickup_address') || 'Pickup location';
+          const dropoff = val(r, 'destinationAddress', 'destination_address', 'dropoffAddress', 'dropoff_address') || 'Drop-off location';
+          const status = val(r, 'status') || 'unknown';
+          const statusClass = status.toLowerCase() === 'completed' ? 'online' : 'pending';
+          const date = val(r, 'completed_at', 'completedAt', 'created_at', 'createdAt');
+          const type = val(r, 'rideType', 'ride_type');
+          const amount = val(r, 'driverEarning', 'driver_earning', 'driver_share', 'final_fare', 'finalFare', 'estimated_fare', 'estimatedFare', 'fare', 'amount');
+          return `<div class="d-flex justify-content-between px-3 py-3 border-bottom gap-3"><div class="min-w-0"><div class="fw-semibold">${esc(pickup)} → ${esc(dropoff)}</div><div class="small text-muted">${esc(date ? formatDate(date) : 'Date unavailable')} · ${esc(type)}</div></div><div class="text-end flex-shrink-0"><div class="fw-semibold">${formatMoney(amount || 0)}</div><span class="status-badge status-${statusClass}">${esc(status)}</span></div></div>`;
+        }).join('');
       } catch (e) { document.getElementById('list').innerHTML = '<div class="text-center py-4 text-danger">' + e.message + '</div>'; }
     })();
   </script>
