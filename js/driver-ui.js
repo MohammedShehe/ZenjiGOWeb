@@ -100,17 +100,20 @@
   function mobile() {
     const side = document.getElementById('appSidebar');
     const overlay = document.getElementById('sidebarOverlay');
-    document.querySelectorAll('[onclick*="toggleSidebar"]').forEach((el) =>
-      el.addEventListener('click', () => {
-        if (innerWidth < 992 && side) side.classList.toggle('show');
-        if (overlay) overlay.classList.toggle('show', !!side && side.classList.contains('show'));
-      })
-    );
-    if (overlay)
+    // The hamburger already calls window.toggleSidebar() inline. Do not
+    // attach a second toggling handler here (it would immediately re-close it).
+    if (overlay) {
       overlay.addEventListener('click', () => {
-        if (side) side.classList.remove('show');
+        side?.classList.remove('show');
         overlay.classList.remove('show');
       });
+    }
+    side?.querySelectorAll('nav a').forEach(a => a.addEventListener('click', () => {
+      if (innerWidth < 992) {
+        side.classList.remove('show');
+        overlay?.classList.remove('show');
+      }
+    }));
   }
 
   function setMsgBadge(count) {
@@ -173,13 +176,14 @@
     setInterval(refreshMsgBadge, 45000);
   });
 
-  window.toggleSidebar =
-    window.toggleSidebar ||
-    function () {
-      const s = document.getElementById('appSidebar');
-      const o = document.getElementById('sidebarOverlay');
-      if (s) s.classList.toggle('show');
-      if (o) o.classList.toggle('show', !!s && s.classList.contains('show'));
-    };
+  window.toggleSidebar = function () {
+    const s = document.getElementById('appSidebar');
+    const o = document.getElementById('sidebarOverlay');
+    if (!s) return;
+    const open = !s.classList.contains('show');
+    s.classList.toggle('show', open);
+    if (o) o.classList.toggle('show', open);
+    document.body.classList.toggle('sidebar-open', open && innerWidth < 992);
+  };
   window.zenjiDriverRefreshMsgBadge = refreshMsgBadge;
 })();

@@ -92,9 +92,13 @@
     setTheme(mode); buildNav(); themeButton(); mobileNav();
   });
   window.zenjiSetTheme = setTheme;
-  window.toggleSidebar = window.toggleSidebar || function () {
+  window.toggleSidebar = function () {
     const s = document.getElementById('appSidebar'), o = document.getElementById('sidebarOverlay');
-    s?.classList.toggle('show'); o?.classList.toggle('show', !!s?.classList.contains('show'));
+    if (!s) return;
+    const open = !s.classList.contains('show');
+    s.classList.toggle('show', open);
+    o?.classList.toggle('show', open);
+    document.body.classList.toggle('sidebar-open', open && innerWidth < 992);
   };
 
   function setMsgBadge(count) {

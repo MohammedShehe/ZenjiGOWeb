@@ -64,6 +64,21 @@ const Api = (() => {
     return false;
   }
 
+  function friendlyApiMessage(message, status) {
+    const raw = String(message || '').toLowerCase();
+    if (status === 401 || status === 403) return 'Your session may have expired. Please sign in again and try once more.';
+    if (status === 404) return 'We could not find what you requested. Please refresh the page and try again.';
+    if (status === 409) return 'This action conflicts with an existing request. Please review your details and try again.';
+    if (status === 422 || status === 400) return 'Please check the information you entered and try again.';
+    if (status >= 500) return 'Something went wrong on our side. Please try again shortly.';
+    if (/network|fetch|cors|api at|stack|exception|undefined|null reference|sql|database|internal server/.test(raw))
+      return 'We could not complete that request. Please check your connection and try again.';
+    if (/invalid otp|incorrect otp|otp expired|wrong code/.test(raw)) return 'That verification code is not valid or has expired. Please request a new code.';
+    if (/already exists|already registered/.test(raw)) return 'An account with these details may already exist. Please sign in or use different details.';
+    if (/too many|rate limit/.test(raw)) return 'You have tried too many times. Please wait a little and try again.';
+    return message && String(message).length < 180 ? message : 'We could not complete that request. Please try again.';
+  }
+
   async function request(method, path, { body = null, auth = true, isForm = false } = {}) {
     const headers = { Accept: 'application/json' };
     if (!isForm) headers['Content-Type'] = 'application/json';
@@ -81,7 +96,7 @@ const Api = (() => {
     try {
       res = await fetch(`${ZENJIGO_CONFIG.API_BASE}${path}`, opts);
     } catch (cause) {
-      const err = new Error(`Cannot reach ZenjiGO API at ${ZENJIGO_CONFIG.API_BASE}. Check the backend URL, backend availability, HTTPS configuration, and CORS allowlist.`);
+      const err = new Error('We could not connect to ZenjiGO right now. Please check your internet connection and try again.');
       err.cause = cause;
       throw err;
     }
@@ -90,7 +105,7 @@ const Api = (() => {
       if (await tryRefresh()) {
         const { access } = getTokens();
         if (access) headers['Authorization'] = `Bearer ${access}`;
-        try { res = await fetch(`${ZENJIGO_CONFIG.API_BASE}${path}`, opts); } catch (cause) { const err = new Error(`Cannot reach ZenjiGO API at ${ZENJIGO_CONFIG.API_BASE}. Check backend availability and CORS settings.`); err.cause = cause; throw err; }
+        try { res = await fetch(`${ZENJIGO_CONFIG.API_BASE}${path}`, opts); } catch (cause) { const err = new Error('We could not connect to ZenjiGO right now. Please try again in a moment.'); err.cause = cause; throw err; }
       }
     }
 
@@ -99,7 +114,8 @@ const Api = (() => {
     try { data = text ? JSON.parse(text) : {}; } catch (_) { data = { message: text }; }
 
     if (!res.ok || data.success === false) {
-      const msg = data.message || data.error || `Request failed (${res.status})`;
+      const rawMsg = data.message || data.error || '';
+      const msg = friendlyApiMessage(rawMsg, res.status);
       const err = new Error(msg);
       err.status = res.status;
       err.data = data;
