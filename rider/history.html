@@ -43,28 +43,77 @@
   <script src="../js/utils.js"></script>
   <script>
     if (!requireAuth('rider')) throw new Error('auth');
+
+    function asRideArray(payload) {
+      if (Array.isArray(payload)) return payload;
+      if (!payload || typeof payload !== 'object') return [];
+      for (const key of ['rides','items','results','records','history']) {
+        if (Array.isArray(payload[key])) return payload[key];
+      }
+      if (payload.data && payload.data !== payload) return asRideArray(payload.data);
+      if (payload.result && payload.result !== payload) return asRideArray(payload.result);
+      return [];
+    }
+    function rideField(obj, keys) {
+      for (const key of keys) {
+        const v = key.split('.').reduce((a, k) => a && a[k] != null ? a[k] : undefined, obj);
+        if (v !== undefined && v !== null && (typeof v !== 'string' || v.trim())) return v;
+      }
+      return null;
+    }
+    function rideText(value) {
+      if (value == null) return '';
+      if (typeof value === 'string' || typeof value === 'number') return String(value);
+      return rideField(value, ['address','formattedAddress','formatted_address','name','label','description','placeName','place_name']) || '';
+    }
+    function escapeRideHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function normalizeRide(r) {
+      const pickup = rideText(rideField(r, ['pickupAddress','pickup_address','pickup.address','pickup.formattedAddress','pickupLocation','pickup_location','pickupLocation.address','pickup_location.address','origin.address','origin','pickup','fromAddress','from_address']));
+      const dropoff = rideText(rideField(r, ['destinationAddress','destination_address','dropoffAddress','dropoff_address','dropoff.address','dropoff.formattedAddress','dropoffLocation','dropoff_location','dropoffLocation.address','dropoff_location.address','destination.address','destination','dropoff','toAddress','to_address','destinationName']));
+      const date = rideField(r, ['createdAt','created_at','requestedAt','requested_at','bookedAt','booked_at','createdOn','created_on','date','timestamp']);
+      const type = rideField(r, ['rideType','ride_type','type','serviceType','service_type']);
+      const fare = rideField(r, ['fare','totalFare','total_fare','amount','price','estimatedFare','estimated_fare','finalFare','final_fare','pricing.total']);
+      const status = rideField(r, ['status','rideStatus','ride_status']) || 'Unknown';
+      const id = rideField(r, ['id','_id','rideId','ride_id']);
+      return { pickup: pickup || 'Pickup location unavailable', dropoff: dropoff || 'Drop-off location unavailable', date, type, fare, status: String(status), id };
+    }
+    function rideStatusClass(status) {
+      const s = String(status || '').toLowerCase();
+      if (['completed','complete','finished'].includes(s)) return 'online';
+      if (['cancelled','canceled','rejected','failed'].includes(s)) return 'cancelled';
+      if (['accepted','arrived','in_progress','in progress','ongoing','started'].includes(s)) return 'active';
+      return 'pending';
+    }
+
     (async () => {
+      const el = document.getElementById('list');
       try {
-        const rides = await Api.rider.history();
-        const list = Array.isArray(rides) ? rides : (rides.rides || []);
-        const el = document.getElementById('list');
+        const payload = await Api.rider.history();
+        const list = asRideArray(payload);
         if (!list.length) {
-          el.innerHTML = '<div class="text-center py-5 text-muted">No rides yet.</div>';
+          el.innerHTML = '<div class="text-center py-5 text-muted">No rides returned by the server yet.</div>';
           return;
         }
-        el.innerHTML = list.map(r => `
-          <a href="ride.html?id=${r.id}" class="d-flex justify-content-between align-items-center px-3 py-3 border-bottom text-decoration-none text-dark">
-            <div>
-              <div class="fw-semibold">${r.pickupAddress || 'Pickup'} → ${r.destinationAddress || 'Drop-off'}</div>
-              <div class="text-muted small">${formatDate(r.createdAt || r.created_at)} · ${(r.rideType || '').toUpperCase()}</div>
+        el.innerHTML = list.map(raw => {
+          const r = normalizeRide(raw);
+          const meta = [r.date ? formatDate(r.date) : '', r.type ? String(r.type).toUpperCase() : ''].filter(Boolean).join(' · ');
+          const fare = r.fare == null ? '—' : formatMoney(r.fare);
+          const link = r.id != null ? `ride.html?id=${encodeURIComponent(r.id)}` : 'history.html';
+          return `<a href="${link}" class="d-flex justify-content-between align-items-center px-3 py-3 border-bottom text-decoration-none text-dark">
+            <div class="me-3">
+              <div class="fw-semibold">${escapeRideHtml(r.pickup)} → ${escapeRideHtml(r.dropoff)}</div>
+              <div class="text-muted small">${escapeRideHtml(meta || 'Date unavailable')}</div>
             </div>
             <div class="text-end">
-              <div class="fw-semibold">${formatMoney(r.fare || r.totalFare || r.amount)}</div>
-              <span class="status-badge status-${(r.status||'')==='completed'?'online':'pending'}">${r.status||''}</span>
+              <div class="fw-semibold">${escapeRideHtml(fare)}</div>
+              <span class="status-badge status-${rideStatusClass(r.status)}">${escapeRideHtml(r.status)}</span>
             </div>
-          </a>`).join('');
+          </a>`;
+        }).join('');
       } catch (e) {
-        document.getElementById('list').innerHTML = `<div class="text-center py-5 text-danger">${e.message}</div>`;
+        el.innerHTML = `<div class="text-center py-5 text-danger">Could not load rides: ${escapeRideHtml(e.message || 'Unknown API error')}</div>`;
       }
     })();
   </script>

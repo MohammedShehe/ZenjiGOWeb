@@ -6,12 +6,40 @@ const Api = (() => {
   });
 
   const setTokens = (access, refresh) => {
-    if (access) localStorage.setItem('accessToken', access);
+    if (access) {
+      localStorage.setItem('accessToken', access);
+      // Keep the legacy key in sync for older pages/integrations.
+      localStorage.setItem('zenjigo_access', access);
+    }
     if (refresh) localStorage.setItem('refreshToken', refresh);
+  };
+
+  // Normalize the different token response shapes returned by the auth API.
+  // Rider login/registration used to call this method, but only setTokens existed.
+  const saveTokens = (payload, role) => {
+    const root = payload && typeof payload === 'object' ? payload : {};
+    const data = root.data && typeof root.data === 'object' ? root.data : root;
+    const tokens = data.tokens && typeof data.tokens === 'object' ? data.tokens : {};
+    const access = data.accessToken || data.access_token || data.access ||
+      tokens.accessToken || tokens.access_token || tokens.access ||
+      root.accessToken || root.access_token || root.access;
+    const refresh = data.refreshToken || data.refresh_token || data.refresh ||
+      tokens.refreshToken || tokens.refresh_token || tokens.refresh ||
+      root.refreshToken || root.refresh_token || root.refresh;
+
+    if (!access) {
+      throw new Error('OTP was verified, but the server did not return an access token. Please try again or contact support.');
+    }
+    setTokens(access, refresh);
+    if (role) localStorage.setItem('userRole', role);
+    const user = data.user || data.rider || data.driver || root.user || root.rider || root.driver;
+    if (user && typeof user === 'object') localStorage.setItem('userData', JSON.stringify(user));
+    return { access, refresh: refresh || null, user: user || null };
   };
 
   const clearTokens = () => {
     localStorage.removeItem('accessToken');
+    localStorage.removeItem('zenjigo_access');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('userRole');
     localStorage.removeItem('userData');
@@ -233,6 +261,7 @@ const Api = (() => {
     rider,
     driver,
     setTokens,
+    saveTokens,
     clearTokens,
     getTokens,
     isLoggedIn: () => !!getTokens().access,

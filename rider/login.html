@@ -161,7 +161,7 @@
       setLoading(btn, true);
       try {
         const data = await Api.auth.verifyRiderOtp(currentPhone, currentEmail, code);
-        Api.saveTokens(data);
+        Api.saveTokens(data, 'rider');
         location.href = 'dashboard.html';
       } catch (e) {
         showToast(e.message || 'Verification failed', 'error');

@@ -235,7 +235,7 @@
             region: registration.region
           }
         );
-        Api.saveTokens(data);
+        Api.saveTokens(data, 'rider');
 
         // Best-effort: save home location like the app (_saveRegistrationAsHome)
         try {
