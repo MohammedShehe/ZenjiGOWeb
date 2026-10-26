@@ -26,16 +26,11 @@ var ZENJIGO_CONFIG = window.ZENJIGO_CONFIG = {
     { id: 'halopesa', name: 'HaloPesa', code: 'HALO' }
   ],
   /**
-   * Maps – ready for production.
-   * Default: Leaflet + OpenStreetMap (no API key required).
-   * To use Google Maps instead:
-   *   1. Set MAP_PROVIDER: 'google'
-   *   2. Put your key in GOOGLE_MAPS_API_KEY
-   *   3. Enable Maps JavaScript API + Places API in Google Cloud Console
+   * Maps — Google Maps JavaScript API + Places API (New) + Geocoding API.
+   * Put your key in GOOGLE_MAPS_API_KEY and restrict it to this website (HTTP referrer) in Google Cloud.
    */
   MAP: {
     PROVIDER: 'google',
-    // Paste your Google Maps JavaScript API key (Maps JS + Places enabled)
     GOOGLE_MAPS_API_KEY: 'AIzaSyD2_9WpUt3D0SlOJTMKY5kK_omBZ0tUhC4',
     DEFAULT_CENTER: { lat: -6.1659, lng: 39.2026 },
     DEFAULT_ZOOM: 14,

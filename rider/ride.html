@@ -78,16 +78,19 @@
         if (['searching','requested','accepted','arriving','arrived','started'].includes(st)) {
           try {
             const track = await Api.rider.track(id);
-            if (track.driverLat) {
-              if (window.__rideMap) {
-              window.__rideMap.setMarkers([
-                { id: 'driver', lat: track.driverLat, lng: track.driverLng, label: 'Driver' },
-                track.pickupLat ? { id: 'pickup', lat: track.pickupLat, lng: track.pickupLng, label: 'Pickup' } : null
-              ].filter(Boolean));
-              window.__rideMap.setCenter({ lat: track.driverLat, lng: track.driverLng });
-            } else {
-              document.getElementById('mapBox').innerHTML = '<div class="text-center p-4"><i class="bi bi-geo-alt-fill fs-1 text-teal"></i><br>Driver at ' + Number(track.driverLat).toFixed(4) + ', ' + Number(track.driverLng).toFixed(4) + '</div>';
-            }
+            if (window.__rideMap) {
+              const pts = [];
+              const driverLat = Number(track.driverLat ?? (track.location && track.location.lat));
+              const driverLng = Number(track.driverLng ?? (track.location && track.location.lng));
+              const pLat = Number(ride.pickupLat ?? ride.pickup_lat), pLng = Number(ride.pickupLng ?? ride.pickup_lng);
+              const dLat = Number(ride.destinationLat ?? ride.destination_lat), dLng = Number(ride.destinationLng ?? ride.destination_lng);
+              let icon = null;
+              try { icon = ZenjiMap.driverIcon('#0d9488'); } catch (_) {}
+              if (Number.isFinite(driverLat) && Number.isFinite(driverLng) && driverLat !== 0) pts.push({ id: 'driver', lat: driverLat, lng: driverLng, title: 'Your driver', icon: icon || undefined, label: icon ? undefined : 'D' });
+              if (Number.isFinite(pLat) && Number.isFinite(pLng)) pts.push({ id: 'pickup', lat: pLat, lng: pLng, title: 'Pickup', label: 'P' });
+              if (Number.isFinite(dLat) && Number.isFinite(dLng)) pts.push({ id: 'dest', lat: dLat, lng: dLng, title: 'Destination', label: 'D' });
+              window.__rideMap.setMarkers(pts, { fitBounds: false });
+              if (pts.length && !window.__rideFitted) { window.__rideMap.fitTo(pts); window.__rideFitted = true; }
             }
           } catch (e) {}
           pollTimer = setTimeout(load, 8000);

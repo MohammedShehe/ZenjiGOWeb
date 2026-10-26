@@ -45,31 +45,13 @@
               </div>
               <div class="form-text small">Suggestions appear as you type. Tap the pin to use your current location.</div>
             </div>
-            <div class="row g-2 mb-3">
-              <div class="col-6">
-                <label class="form-label small fw-semibold">Pickup lat</label>
-                <input type="number" step="any" id="pickupLat" class="form-control" value="-6.1659" placeholder="-6.16">
-              </div>
-              <div class="col-6">
-                <label class="form-label small fw-semibold">Pickup lng</label>
-                <input type="number" step="any" id="pickupLng" class="form-control" value="39.2026" placeholder="39.20">
-              </div>
-            </div>
+            <input type="hidden" id="pickupLat"><input type="hidden" id="pickupLng">
             <div class="mb-3">
               <label class="form-label small fw-semibold">Destination address</label>
               <input type="text" id="destAddress" class="form-control" placeholder="Search destination" autocomplete="off">
-              <div class="form-text small">Type to see place suggestions (Zanzibar).</div>
+              <div class="form-text small">Type a place name, or tap the map to drop the destination pin.</div>
             </div>
-            <div class="row g-2 mb-3">
-              <div class="col-6">
-                <label class="form-label small fw-semibold">Dest lat</label>
-                <input type="number" step="any" id="destLat" class="form-control" value="-5.7265" placeholder="-5.72">
-              </div>
-              <div class="col-6">
-                <label class="form-label small fw-semibold">Dest lng</label>
-                <input type="number" step="any" id="destLng" class="form-control" value="39.2946" placeholder="39.29">
-              </div>
-            </div>
+            <input type="hidden" id="destLat"><input type="hidden" id="destLng">
 
             <label class="form-label small fw-semibold">Ride type</label>
             <div class="row g-2 mb-3" id="rideTypes"></div>
@@ -104,8 +86,7 @@
           <div class="card-zenji p-3">
             <p class="small text-muted mb-2">
               <i class="bi bi-info-circle me-1"></i>
-              Type to get place suggestions, or use the pin button for your current location.
-              Online drivers appear on the map when available.
+              Search for places, tap the map, or drag the P / D pins to fine-tune. Online drivers appear on the map when available.
             </p>
             <p class="small text-muted mb-0">
               <i class="bi bi-car-front me-1"></i>
@@ -146,27 +127,32 @@
       document.getElementById('btnBook').disabled = true;
     }
 
-    function coordsBody() {
-      return {
-        rideType: selectedType,
-        pickupLat: parseFloat(document.getElementById('pickupLat').value),
-        pickupLng: parseFloat(document.getElementById('pickupLng').value),
-        destinationLat: parseFloat(document.getElementById('destLat').value),
-        destinationLng: parseFloat(document.getElementById('destLng').value)
+    function readCoords() {
+      const g = (id) => {
+        const v = document.getElementById(id).value;
+        return v === '' ? NaN : Number(v);
       };
+      const c = { pickupLat: g('pickupLat'), pickupLng: g('pickupLng'), destinationLat: g('destLat'), destinationLng: g('destLng') };
+      return Object.values(c).every(Number.isFinite) ? c : null;
+    }
+
+    function coordsBody() {
+      const c = readCoords();
+      return c ? { rideType: selectedType, ...c } : null;
     }
 
     async function getQuote() {
       const pickupAddress = document.getElementById('pickupAddress').value.trim();
       const destAddress = document.getElementById('destAddress').value.trim();
-      if (!pickupAddress || !destAddress) {
-        showToast('Enter pickup and destination addresses', 'error');
+      const body = coordsBody();
+      if (!pickupAddress || !destAddress || !body) {
+        showToast('Choose your pickup and destination from the suggestions, or tap them on the map.', 'error');
         return;
       }
       const btn = document.getElementById('btnQuote');
       setLoading(btn, true);
       try {
-        const q = await Api.rider.quote(coordsBody());
+        const q = await Api.rider.quote(body);
         lastQuote = q;
         document.getElementById('quoteFare').textContent = formatMoney(q.fare || q.estimatedFare || q.total || q.amount);
         document.getElementById('quoteMeta').textContent =
@@ -183,8 +169,13 @@
     }
 
     async function bookRide() {
+      const cb = coordsBody();
+      if (!cb) {
+        showToast('Choose your pickup and destination first.', 'error');
+        return;
+      }
       const body = {
-        ...coordsBody(),
+        ...cb,
         pickupAddress: document.getElementById('pickupAddress').value.trim(),
         destinationAddress: document.getElementById('destAddress').value.trim(),
         paymentMethod: document.getElementById('paymentMethod').value
@@ -211,37 +202,60 @@
   const $ = (id) => document.getElementById(id);
   let driverMarkers = [];
   let driversPollTimer = null;
+  let activeField = 'dest'; // which field a map tap fills: 'pickup' | 'dest'
 
-  function pickupLat() { return Number($('pickupLat')?.value || -6.1659); }
-  function pickupLng() { return Number($('pickupLng')?.value || 39.2026); }
-  function destLat() { return Number($('destLat')?.value || -5.7265); }
-  function destLng() { return Number($('destLng')?.value || 39.2946); }
+  const num = (id) => { const v = $(id) && $(id).value; return v === '' || v == null ? null : Number(v); };
+  const pickup = () => { const a = num('pickupLat'), b = num('pickupLng'); return a == null || b == null ? null : { lat: a, lng: b }; };
+  const dest = () => { const a = num('destLat'), b = num('destLng'); return a == null || b == null ? null : { lat: a, lng: b }; };
+
+  function invalidateQuote() {
+    const box = $('quoteBox'); if (box) box.classList.add('d-none');
+    const btn = $('btnBook'); if (btn) btn.disabled = true;
+  }
+
+  function setPoint(kind, p) {
+    const pre = kind === 'pickup' ? 'pickup' : 'dest';
+    $(pre + 'Lat').value = p ? Number(p.lat).toFixed(6) : '';
+    $(pre + 'Lng').value = p ? Number(p.lng).toFixed(6) : '';
+    invalidateQuote();
+    refreshMarkers();
+  }
 
   function buildCoreMarkers() {
-    return [
-      { id: 'pickup', lat: pickupLat(), lng: pickupLng(), label: 'P', title: 'Pickup', draggable: true },
-      { id: 'dest', lat: destLat(), lng: destLng(), label: 'D', title: 'Destination', draggable: true }
-    ];
+    const out = [];
+    const p = pickup(), d = dest();
+    if (p) out.push({ id: 'pickup', lat: p.lat, lng: p.lng, label: 'P', title: 'Pickup (drag to adjust)', draggable: true });
+    if (d) out.push({ id: 'dest', lat: d.lat, lng: d.lng, label: 'D', title: 'Destination (drag to adjust)', draggable: true });
+    return out;
   }
 
   function refreshMarkers() {
     if (!window.__bookingMap) return;
-    const core = buildCoreMarkers();
-    const all = core.concat(driverMarkers);
-    window.__bookingMap.setMarkers(all, { fitBounds: false });
+    window.__bookingMap.setMarkers(buildCoreMarkers().concat(driverMarkers), { fitBounds: false });
+  }
+
+  function fitTrip() {
+    const m = window.__bookingMap; if (!m) return;
+    const pts = [pickup(), dest()].filter(Boolean);
+    if (pts.length) m.fitTo(pts);
+  }
+
+  async function fillAddress(kind, p) {
+    const input = $(kind === 'pickup' ? 'pickupAddress' : 'destAddress');
+    let addr = null;
+    try { addr = await ZenjiMap.reverseGeocode(p.lat, p.lng); } catch (_) {}
+    input.value = addr || (kind === 'pickup' ? 'Pinned pickup location' : 'Pinned destination');
   }
 
   async function loadOnlineDrivers() {
     if (!window.Api || !Api.rider || !Api.rider.nearbyDrivers) return;
+    const p = pickup() || (ZENJIGO_CONFIG.MAP && ZENJIGO_CONFIG.MAP.DEFAULT_CENTER);
+    if (!p) return;
     try {
-      const lat = pickupLat();
-      const lng = pickupLng();
-      const list = await Api.rider.nearbyDrivers(lat, lng, 8);
+      const list = await Api.rider.nearbyDrivers(p.lat, p.lng, 8);
       const arr = Array.isArray(list) ? list : (list?.drivers || list?.data || []);
       let icon = null;
-      try {
-        if (window.google && google.maps && ZenjiMap.driverIcon) icon = ZenjiMap.driverIcon('#0d9488');
-      } catch (_) {}
+      try { if (window.google && google.maps && ZenjiMap.driverIcon) icon = ZenjiMap.driverIcon('#0d9488'); } catch (_) {}
       driverMarkers = arr
         .filter((d) => d && (d.lat != null || d.latitude != null))
         .map((d, i) => ({
@@ -250,15 +264,23 @@
           lng: Number(d.lng ?? d.longitude),
           title: (d.fullName || d.name || 'Driver') + (d.vehicleType ? ' · ' + d.vehicleType : ''),
           icon: icon || undefined,
-          label: icon ? undefined : '🚗',
+          label: icon ? undefined : 'D',
           info: '<div class="small"><strong>' + (d.fullName || d.name || 'Online driver') + '</strong><br>' +
             (d.vehicleType || d.rideType || '') + (d.plateNumber ? ' · ' + d.plateNumber : '') + '</div>'
         }));
       refreshMarkers();
     } catch (e) {
-      // Backend may not expose nearby yet — keep map usable
       console.warn('Nearby drivers:', e.message || e);
     }
+  }
+
+  async function setPickupFromHere(here, toast) {
+    setPoint('pickup', here);
+    await fillAddress('pickup', here);
+    activeField = 'dest';
+    if (window.__bookingMap) window.__bookingMap.setCenter(here, 15);
+    loadOnlineDrivers();
+    if (toast) showToast('Pickup set to your current location');
   }
 
   window.useMyLocation = async function useMyLocation() {
@@ -266,25 +288,8 @@
     if (btn) btn.disabled = true;
     try {
       const here = await ZenjiMap.getCurrentPosition(10000);
-      if (!here) {
-        showToast('Could not get your location. Check browser permissions.', 'error');
-        return;
-      }
-      $('pickupLat').value = here.lat.toFixed(6);
-      $('pickupLng').value = here.lng.toFixed(6);
-      $('pickupLat').dataset.userSet = '1';
-      let address = null;
-      try {
-        address = await ZenjiMap.reverseGeocode(here.lat, here.lng);
-      } catch (_) {}
-      if (address) $('pickupAddress').value = address;
-      else if (!$('pickupAddress').value) $('pickupAddress').value = 'Current location';
-      if (window.__bookingMap) {
-        window.__bookingMap.setCenter(here, 15);
-        refreshMarkers();
-      }
-      loadOnlineDrivers();
-      showToast('Pickup set to your current location');
+      if (!here) { showToast('Could not get your location. Check browser permissions.', 'error'); return; }
+      await setPickupFromHere(here, true);
     } catch (e) {
       showToast(e.message || 'Location failed', 'error');
     } finally {
@@ -295,67 +300,56 @@
   (async function initBookingMap() {
     if (!window.ZenjiMap) return;
     try {
-      const here = await ZenjiMap.getCurrentPosition(6000);
-      const center = here || { lat: pickupLat(), lng: pickupLng() };
-      if (here && $('pickupLat') && !$('pickupLat').dataset.userSet) {
-        $('pickupLat').value = here.lat.toFixed(6);
-        $('pickupLng').value = here.lng.toFixed(6);
-        try {
-          const addr = await ZenjiMap.reverseGeocode(here.lat, here.lng);
-          if (addr && $('pickupAddress') && !$('pickupAddress').value) {
-            $('pickupAddress').value = addr;
-          }
-        } catch (_) {}
-      }
-
+      const defCenter = (ZENJIGO_CONFIG.MAP && ZENJIGO_CONFIG.MAP.DEFAULT_CENTER) || { lat: -6.1659, lng: 39.2026 };
       window.__bookingMap = await ZenjiMap.createMap('bookingMap', {
-        center,
+        center: defCenter,
         zoom: 14,
-        markers: buildCoreMarkers(),
+        markers: [],
         fitBounds: false,
+        onMapClick(p) {
+          // Tap the map to place the pin of the field you are working on.
+          const kind = (!pickup() || activeField === 'pickup') ? 'pickup' : 'dest';
+          setPoint(kind, p);
+          fillAddress(kind, p);
+          if (kind === 'pickup') { activeField = 'dest'; loadOnlineDrivers(); }
+          fitTrip();
+        },
         onMarkerDrag({ lat, lng, id }) {
-          if (id === 'pickup') {
-            $('pickupLat').value = lat.toFixed(6);
-            $('pickupLng').value = lng.toFixed(6);
-            $('pickupLat').dataset.userSet = '1';
-            loadOnlineDrivers();
-          } else if (id === 'dest') {
-            $('destLat').value = lat.toFixed(6);
-            $('destLng').value = lng.toFixed(6);
-          }
-          refreshMarkers();
+          const kind = id === 'pickup' ? 'pickup' : 'dest';
+          setPoint(kind, { lat, lng });
+          fillAddress(kind, { lat, lng });
+          if (kind === 'pickup') loadOnlineDrivers();
         }
       });
 
       const country = (ZENJIGO_CONFIG.MAP && ZENJIGO_CONFIG.MAP.COUNTRY) || 'tz';
-      if ($('pickupAddress')) {
-        await ZenjiMap.attachAutocomplete($('pickupAddress'), (place) => {
-          $('pickupAddress').value = place.address;
-          $('pickupLat').value = place.lat.toFixed(6);
-          $('pickupLng').value = place.lng.toFixed(6);
-          $('pickupLat').dataset.userSet = '1';
-          if (window.__bookingMap) window.__bookingMap.setCenter({ lat: place.lat, lng: place.lng }, 15);
-          refreshMarkers();
-          loadOnlineDrivers();
-        }, { country });
-      }
-      if ($('destAddress')) {
-        await ZenjiMap.attachAutocomplete($('destAddress'), (place) => {
-          $('destAddress').value = place.address;
-          $('destLat').value = place.lat.toFixed(6);
-          $('destLng').value = place.lng.toFixed(6);
-          refreshMarkers();
-        }, { country });
-      }
+      $('pickupAddress').addEventListener('focus', () => { activeField = 'pickup'; });
+      $('destAddress').addEventListener('focus', () => { activeField = 'dest'; });
 
-      // Show online drivers on the map
-      await loadOnlineDrivers();
+      await ZenjiMap.attachAutocomplete($('pickupAddress'), (place) => {
+        setPoint('pickup', place);
+        if (window.__bookingMap) window.__bookingMap.setCenter(place, 15);
+        activeField = 'dest';
+        fitTrip();
+        loadOnlineDrivers();
+      }, { country, onType: () => { setPoint('pickup', null); } });
+
+      await ZenjiMap.attachAutocomplete($('destAddress'), (place) => {
+        setPoint('dest', place);
+        fitTrip();
+      }, { country, onType: () => { setPoint('dest', null); } });
+
+      // Start with the rider's current location as pickup (if the browser allows it).
+      const here = await ZenjiMap.getCurrentPosition(6000);
+      if (here && !pickup()) await setPickupFromHere(here, false);
+      else await loadOnlineDrivers();
+
       driversPollTimer = setInterval(loadOnlineDrivers, 25000);
       window.addEventListener('beforeunload', () => clearInterval(driversPollTimer));
     } catch (e) {
       console.warn('Map:', e.message || e);
       const box = $('bookingMap');
-      if (box) box.innerHTML = '<div class="p-4 text-center text-muted small">Map unavailable. Set GOOGLE_MAPS_API_KEY in js/config.js (Maps JavaScript API + Places + Geocoding).</div>';
+      if (box) box.innerHTML = '<div class="p-4 text-center text-muted small">The map could not be loaded (' + (e.message || 'unknown error') + '). You can still book by typing addresses once the map service is available.</div>';
     }
   })();
 })();
