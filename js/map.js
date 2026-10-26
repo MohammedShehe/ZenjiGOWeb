@@ -126,12 +126,16 @@
         const pl = s.placePrediction.toPlace();
         await pl.fetchFields({ fields: ['displayName', 'formattedAddress', 'location', 'id'] });
         if (!pl.location) return;
-        const address = pl.formattedAddress || (pl.displayName || s.placePrediction.text.text);
+        // Keep the human-readable suggestion the user actually chose. formattedAddress can
+        // contain a Plus Code (e.g. 27PW...) instead of the place name they selected.
+        const selectedLabel = (s.placePrediction.text && s.placePrediction.text.text) ||
+          (s.placePrediction.mainText && s.placePrediction.mainText.text) || pl.displayName || pl.formattedAddress || '';
+        const address = selectedLabel;
         suppress = true;
-        inputEl.value = address;
+        inputEl.value = selectedLabel;
         suppress = false;
         token = new AutocompleteSessionToken(); // a new billing session after a selection
-        onPlace({ address, lat: pl.location.lat(), lng: pl.location.lng(), placeId: pl.id, name: pl.displayName || '' });
+        onPlace({ address, lat: pl.location.lat(), lng: pl.location.lng(), placeId: pl.id, name: selectedLabel });
       } catch (e) {
         console.warn('Place details failed:', e && e.message ? e.message : e);
       }
@@ -220,6 +224,8 @@
 
     const markers = [];
     let info = null;
+    let directionsRenderer = null;
+    let routeRequestSeq = 0;
     function setMarkers(list, opts = {}) {
       markers.forEach((m) => m.setMap(null));
       markers.length = 0;
@@ -264,6 +270,51 @@
       provider: 'google',
       map,
       setMarkers,
+      /** Draw the driving route between pickup and destination without replacing P/D markers. */
+      async setRoute(origin, destination) {
+        const requestId = ++routeRequestSeq;
+        if (!origin || !destination || !isFinite(Number(origin.lat)) || !isFinite(Number(origin.lng)) ||
+            !isFinite(Number(destination.lat)) || !isFinite(Number(destination.lng))) {
+          if (directionsRenderer) directionsRenderer.set('directions', null);
+          return null;
+        }
+        const DirectionsService = google.maps.DirectionsService;
+        const DirectionsRenderer = google.maps.DirectionsRenderer;
+        if (!DirectionsService || !DirectionsRenderer) {
+          console.warn('Google Maps Directions service is unavailable.');
+          return null;
+        }
+        if (!directionsRenderer) {
+          directionsRenderer = new DirectionsRenderer({
+            map,
+            suppressMarkers: true,
+            preserveViewport: true,
+            polylineOptions: { strokeColor: '#0d9488', strokeOpacity: 0.95, strokeWeight: 6, zIndex: 5 }
+          });
+        }
+        const service = new DirectionsService();
+        return new Promise((resolve) => {
+          service.route({
+            origin: { lat: Number(origin.lat), lng: Number(origin.lng) },
+            destination: { lat: Number(destination.lat), lng: Number(destination.lng) },
+            travelMode: google.maps.TravelMode.DRIVING
+          }, (result, status) => {
+            if (requestId !== routeRequestSeq) return resolve(null);
+            if (status === 'OK' && result) {
+              directionsRenderer.setDirections(result);
+              resolve(result);
+            } else {
+              directionsRenderer.set('directions', null);
+              console.warn('Route could not be drawn:', status);
+              resolve(null);
+            }
+          });
+        });
+      },
+      clearRoute() {
+        routeRequestSeq++;
+        if (directionsRenderer) directionsRenderer.set('directions', null);
+      },
       fitTo(points, padding = 56) {
         const pts = (points || []).filter((p) => p && isFinite(p.lat) && isFinite(p.lng));
         if (!pts.length) return;
@@ -277,6 +328,8 @@
         if (z != null) map.setZoom(z);
       },
       destroy() {
+        routeRequestSeq++;
+        if (directionsRenderer) directionsRenderer.setMap(null);
         markers.forEach((m) => m.setMap(null));
         el.innerHTML = '';
       }

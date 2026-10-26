@@ -232,6 +232,9 @@
   function refreshMarkers() {
     if (!window.__bookingMap) return;
     window.__bookingMap.setMarkers(buildCoreMarkers().concat(driverMarkers), { fitBounds: false });
+    const p = pickup(), d = dest();
+    if (p && d && typeof window.__bookingMap.setRoute === 'function') window.__bookingMap.setRoute(p, d);
+    else if (typeof window.__bookingMap.clearRoute === 'function') window.__bookingMap.clearRoute();
   }
 
   function fitTrip() {
