@@ -222,9 +222,74 @@
       map.addListener('click', (e) => options.onMapClick({ lat: e.latLng.lat(), lng: e.latLng.lng() }));
     }
 
+    function clearLine() {
+      if (routeLine) { routeLine.setMap(null); routeLine = null; }
+    }
+    function haversine(a, b) {
+      const R = 6371000, r = (x) => x * Math.PI / 180;
+      const dLat = r(b.lat - a.lat), dLng = r(b.lng - a.lng);
+      const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(h));
+    }
+    /** Google Routes API (the newer replacement for the legacy DirectionsService). */
+    async function googleRoutesApi(o, d) {
+      const key = cfg().GOOGLE_MAPS_API_KEY;
+      if (!key) return null;
+      try {
+        const res = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': key,
+            'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.polyline.geoJsonLinestring'
+          },
+          body: JSON.stringify({
+            origin: { location: { latLng: { latitude: o.lat, longitude: o.lng } } },
+            destination: { location: { latLng: { latitude: d.lat, longitude: d.lng } } },
+            travelMode: 'DRIVE',
+            polylineEncoding: 'GEO_JSON_LINESTRING'
+          })
+        });
+        if (!res.ok) {
+          console.warn('Routes API refused the request (' + res.status + '). Enable "Routes API" for this key and allow this site in its referrer list.');
+          return null;
+        }
+        const data = await res.json();
+        const r = data.routes && data.routes[0];
+        const coords = r && r.polyline && r.polyline.geoJsonLinestring && r.polyline.geoJsonLinestring.coordinates;
+        if (!coords || coords.length < 2) return null;
+        return {
+          path: coords.map((c) => ({ lat: c[1], lng: c[0] })),
+          distanceMeters: r.distanceMeters || 0,
+          durationSeconds: parseInt(String(r.duration || '0').replace('s', ''), 10) || 0
+        };
+      } catch (e) {
+        console.warn('Routes API failed:', e && e.message ? e.message : e);
+        return null;
+      }
+    }
+    /** OpenStreetMap road routing fallback. */
+    async function osrmRoute(o, d) {
+      try {
+        const url = 'https://router.project-osrm.org/route/v1/driving/' +
+          o.lng + ',' + o.lat + ';' + d.lng + ',' + d.lat + '?overview=full&geometries=geojson';
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const data = await res.json();
+        const r = data.routes && data.routes[0];
+        if (!r || !r.geometry || !r.geometry.coordinates || r.geometry.coordinates.length < 2) return null;
+        return {
+          path: r.geometry.coordinates.map((c) => ({ lat: c[1], lng: c[0] })),
+          distanceMeters: r.distance || 0,
+          durationSeconds: Math.round(r.duration || 0)
+        };
+      } catch (e) {
+        return null;
+      }
+    }
     const markers = [];
     let info = null;
-    let directionsRenderer = null;
+    let routeLine = null;
     let routeRequestSeq = 0;
     function setMarkers(list, opts = {}) {
       markers.forEach((m) => m.setMap(null));
@@ -270,50 +335,46 @@
       provider: 'google',
       map,
       setMarkers,
-      /** Draw the driving route between pickup and destination without replacing P/D markers. */
+      /**
+       * Draw the road route between pickup and destination (same strategy as the rider app):
+       * 1) Google Routes API  2) OSRM (OpenStreetMap roads)  3) straight line (last resort).
+       * Does not touch the P/D markers or the viewport.
+       */
       async setRoute(origin, destination) {
         const requestId = ++routeRequestSeq;
-        if (!origin || !destination || !isFinite(Number(origin.lat)) || !isFinite(Number(origin.lng)) ||
-            !isFinite(Number(destination.lat)) || !isFinite(Number(destination.lng))) {
-          if (directionsRenderer) directionsRenderer.set('directions', null);
-          return null;
+        const ok = (p) => p && isFinite(Number(p.lat)) && isFinite(Number(p.lng));
+        if (!ok(origin) || !ok(destination)) { clearLine(); return null; }
+        const o = { lat: Number(origin.lat), lng: Number(origin.lng) };
+        const d = { lat: Number(destination.lat), lng: Number(destination.lng) };
+
+        let result = await googleRoutesApi(o, d);
+        if (!result) result = await osrmRoute(o, d);
+        if (requestId !== routeRequestSeq) return null; // a newer request replaced this one
+        let straight = false;
+        if (!result) {
+          straight = true;
+          result = { path: [o, d], distanceMeters: haversine(o, d), durationSeconds: 0 };
         }
-        const DirectionsService = google.maps.DirectionsService;
-        const DirectionsRenderer = google.maps.DirectionsRenderer;
-        if (!DirectionsService || !DirectionsRenderer) {
-          console.warn('Google Maps Directions service is unavailable.');
-          return null;
-        }
-        if (!directionsRenderer) {
-          directionsRenderer = new DirectionsRenderer({
-            map,
-            suppressMarkers: true,
-            preserveViewport: true,
-            polylineOptions: { strokeColor: '#0d9488', strokeOpacity: 0.95, strokeWeight: 6, zIndex: 5 }
-          });
-        }
-        const service = new DirectionsService();
-        return new Promise((resolve) => {
-          service.route({
-            origin: { lat: Number(origin.lat), lng: Number(origin.lng) },
-            destination: { lat: Number(destination.lat), lng: Number(destination.lng) },
-            travelMode: google.maps.TravelMode.DRIVING
-          }, (result, status) => {
-            if (requestId !== routeRequestSeq) return resolve(null);
-            if (status === 'OK' && result) {
-              directionsRenderer.setDirections(result);
-              resolve(result);
-            } else {
-              directionsRenderer.set('directions', null);
-              console.warn('Route could not be drawn:', status);
-              resolve(null);
-            }
-          });
+        clearLine();
+        routeLine = new google.maps.Polyline({
+          map,
+          path: result.path,
+          strokeColor: '#0d9488',
+          strokeOpacity: straight ? 0 : 0.95,
+          strokeWeight: 6,
+          zIndex: 5,
+          geodesic: false,
+          icons: straight ? [{
+            icon: { path: 'M 0,-1 0,1', strokeOpacity: 0.9, scale: 3 },
+            offset: '0', repeat: '14px'
+          }] : null
         });
+        result.followsRoads = !straight;
+        return result;
       },
       clearRoute() {
         routeRequestSeq++;
-        if (directionsRenderer) directionsRenderer.set('directions', null);
+        clearLine();
       },
       fitTo(points, padding = 56) {
         const pts = (points || []).filter((p) => p && isFinite(p.lat) && isFinite(p.lng));
@@ -329,7 +390,7 @@
       },
       destroy() {
         routeRequestSeq++;
-        if (directionsRenderer) directionsRenderer.setMap(null);
+        clearLine();
         markers.forEach((m) => m.setMap(null));
         el.innerHTML = '';
       }
