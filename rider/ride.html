@@ -90,6 +90,19 @@
               if (Number.isFinite(pLat) && Number.isFinite(pLng)) pts.push({ id: 'pickup', lat: pLat, lng: pLng, title: 'Pickup', label: 'P' });
               if (Number.isFinite(dLat) && Number.isFinite(dLng)) pts.push({ id: 'dest', lat: dLat, lng: dLng, title: 'Destination', label: 'D' });
               window.__rideMap.setMarkers(pts, { fitBounds: false });
+              // Road line: driver -> pickup until the trip starts, then pickup -> destination.
+              try {
+                const okp = (la, ln) => Number.isFinite(la) && Number.isFinite(ln) && la !== 0;
+                const started = st === 'started' || st === 'in_progress';
+                const from = started ? (okp(pLat, pLng) ? { lat: pLat, lng: pLng } : null)
+                                     : (okp(driverLat, driverLng) ? { lat: driverLat, lng: driverLng } : null);
+                const to = started ? (okp(dLat, dLng) ? { lat: dLat, lng: dLng } : null)
+                                   : (okp(pLat, pLng) ? { lat: pLat, lng: pLng } : null);
+                if (from && to) {
+                  const key = [from.lat.toFixed(3), from.lng.toFixed(3), to.lat.toFixed(3), to.lng.toFixed(3)].join(',');
+                  if (key !== window.__rideRouteKey) { window.__rideRouteKey = key; window.__rideMap.setRoute(from, to); }
+                } else { window.__rideMap.clearRoute(); window.__rideRouteKey = ''; }
+              } catch (_) {}
               if (pts.length && !window.__rideFitted) { window.__rideMap.fitTo(pts); window.__rideFitted = true; }
             }
           } catch (e) {}

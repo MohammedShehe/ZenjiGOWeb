@@ -94,6 +94,26 @@
       if (!mapApi) return;
       const m = markersFromRide();
       mapApi.setMarkers(m, { fitBounds: m.length > 1 });
+      drawRoute();
+    }
+
+    // Road line: driver -> pickup until the trip starts, then pickup -> destination.
+    let lastRouteKey = '';
+    function drawRoute() {
+      if (!mapApi || !ride || typeof mapApi.setRoute !== 'function') return;
+      const pt = (la, ln) => (la == null || ln == null || !isFinite(Number(la)) || !isFinite(Number(ln))) ? null : { lat: Number(la), lng: Number(ln) };
+      const pickup = pt(ride.pickupLat ?? ride.pickup_lat, ride.pickupLng ?? ride.pickup_lng);
+      const dest = pt(ride.destinationLat ?? ride.destination_lat, ride.destinationLng ?? ride.destination_lng);
+      const st = String(ride.status || '').toLowerCase();
+      const started = st === 'started' || st === 'in_progress';
+      const from = started ? pickup : (myPos || null);
+      const to = started ? dest : pickup;
+      if (!from || !to) { mapApi.clearRoute(); lastRouteKey = ''; return; }
+      // Skip the request when nothing meaningful moved (~100 m) to avoid needless API calls.
+      const key = [from.lat.toFixed(3), from.lng.toFixed(3), to.lat.toFixed(3), to.lng.toFixed(3)].join(',');
+      if (key === lastRouteKey) return;
+      lastRouteKey = key;
+      mapApi.setRoute(from, to);
     }
 
     async function loadRide() {
