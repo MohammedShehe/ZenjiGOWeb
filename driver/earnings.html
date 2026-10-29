@@ -108,7 +108,7 @@
         const f = await Api.driver.finance();
         renderSettlement(f);
         document.getElementById('finance').innerHTML = '<pre class="small mb-0" style="white-space:pre-wrap">' + JSON.stringify(f, null, 2) + '</pre>';
-      } catch (e) { document.getElementById('finance').innerHTML = '<span class="text-muted small">' + e.message + '</span>'; }
+      } catch (e) { document.getElementById('finance').innerHTML = '<span class="text-muted small">' + esc(e.message) + '</span>'; }
     }
     async function requestPayout() {
       const amount = parseFloat(document.getElementById('payoutAmt').value);

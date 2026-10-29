@@ -132,3 +132,17 @@
   });
 
 })();
+/* Resume an in-progress ride after refresh / re-login (matches the app). */
+(async function resumeActiveRide() {
+  try {
+    if (!/\/(dashboard|book)\.html/.test(location.pathname) || !window.Api || !Api.isLoggedIn()) return;
+    const list = await Api.rider.history();
+    const rides = Array.isArray(list) ? list : (list && (list.rides || list.items)) || [];
+    const a = rides.find(r => ['searching','accepted','arriving','arrived','started'].includes(String(r.status).toLowerCase()));
+    if (!a) return;
+    const bar = document.createElement('div');
+    bar.className = 'alert alert-info d-flex justify-content-between align-items-center m-3';
+    bar.innerHTML = '<span><i class="bi bi-geo-alt-fill me-2"></i>You have a ride in progress.</span><a class="btn btn-sm btn-primary-zenji" href="ride.html?id=' + encodeURIComponent(a.id) + '">View ride</a>';
+    const host = document.querySelector('.app-content'); if (host) host.prepend(bar);
+  } catch (_) {}
+})();

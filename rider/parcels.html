@@ -54,7 +54,7 @@
         const el = document.getElementById('list');
         if (!list.length) { el.innerHTML = '<div class="text-center py-4 text-muted">No parcels yet.</div>'; return; }
         el.innerHTML = list.map(p => '<div class="px-3 py-3 border-bottom"><div class="fw-semibold">' + (p.pickupAddress||p.pickup||'') + ' → ' + (p.dropoffAddress||p.destination||'') + '</div><div class="small text-muted">' + (p.description||'') + ' · ' + (p.status||'') + '</div></div>').join('');
-      } catch (e) { document.getElementById('list').innerHTML = '<div class="p-3 text-danger">' + e.message + '</div>'; }
+      } catch (e) { document.getElementById('list').innerHTML = '<div class="p-3 text-danger">' + esc(e.message) + '</div>'; }
     }
     async function createParcel() {
       try {

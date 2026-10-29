@@ -60,25 +60,34 @@ function showToast(message, type = 'success') {
   container.insertAdjacentHTML('beforeend', `
     <div id="${id}" class="toast align-items-center text-white ${bg} border-0" role="alert">
       <div class="d-flex">
-        <div class="toast-body">${message}</div>
+        <div class="toast-body" data-msg></div>
         <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
       </div>
     </div>`);
   const el = document.getElementById(id);
-  const t = new bootstrap.Toast(el, { delay: 3500 });
+  const body = el.querySelector('[data-msg]');
+  if (body) body.textContent = String(message == null ? '' : message);
+  const t = new bootstrap.Toast(el, { delay: type === 'error' ? 6000 : 3500 });
   t.show();
   el.addEventListener('hidden.bs.toast', () => el.remove());
 }
 
+/** Escape anything that came from a server/user before putting it in innerHTML. */
+function esc(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 function formatMoney(amount) {
-  if (amount == null) return '—';
-  return 'TZS ' + Number(amount).toLocaleString('en-TZ');
+  if (amount == null || amount === '' || isNaN(Number(amount))) return '—';
+  return 'TZS ' + Math.round(Number(amount)).toLocaleString('en-TZ');
 }
 
 function formatDate(iso) {
   if (!iso) return '—';
   try {
-    return new Date(iso).toLocaleString('en-GB', {
+    // MySQL returns UTC; make sure the browser reads it as UTC.
+    const d = (typeof iso === 'string' && !/[zZ]|[+-]\d\d:?\d\d$/.test(iso)) ? new Date(iso.replace(' ', 'T') + 'Z') : new Date(iso);
+    return d.toLocaleString('en-GB', {
       day: 'numeric', month: 'short', year: 'numeric',
       hour: '2-digit', minute: '2-digit'
     });

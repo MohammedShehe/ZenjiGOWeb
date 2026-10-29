@@ -151,7 +151,7 @@
           </div>`;
         }).join('');
       } catch (e) {
-        document.getElementById('requests').innerHTML = `<div class="text-center py-4 text-muted small">${e.message}</div>`;
+        document.getElementById('requests').innerHTML = `<div class="text-center py-4 text-muted small">${esc(e.message)}</div>`;
       }
     }
 

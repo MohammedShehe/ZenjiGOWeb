@@ -187,3 +187,18 @@
   };
   window.zenjiDriverRefreshMsgBadge = refreshMsgBadge;
 })();
+
+/* Resume an in-progress ride after refresh / re-login (matches the app). */
+(async function resumeActiveRide() {
+  try {
+    if (!/\/(dashboard|requests)\.html/.test(location.pathname) || !window.Api || !Api.isLoggedIn()) return;
+    const list = await Api.driver.history(10);
+    const rides = Array.isArray(list) ? list : (list && (list.rides || list.items)) || [];
+    const a = rides.find(r => ['accepted','arriving','arrived','started'].includes(String(r.status).toLowerCase()));
+    if (!a) return;
+    const bar = document.createElement('div');
+    bar.className = 'alert alert-info d-flex justify-content-between align-items-center m-3';
+    bar.innerHTML = '<span><i class="bi bi-geo-alt-fill me-2"></i>You have a ride in progress.</span><a class="btn btn-sm btn-primary-zenji" href="active.html?id=' + encodeURIComponent(a.id) + '">Continue ride</a>';
+    const host = document.querySelector('.app-content'); if (host) host.prepend(bar);
+  } catch (_) {}
+})();

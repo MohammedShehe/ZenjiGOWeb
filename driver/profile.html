@@ -71,7 +71,7 @@
           '<div class="mb-2"><span class="text-muted small">Online</span><div>' + onlineBadge + '</div></div>' +
           '<div><span class="text-muted small">Application status</span><div>' + appBadge + '</div></div>' +
           reasonBlock;
-      } catch (e) { document.getElementById('profileCard').innerHTML = '<div class="text-danger">' + e.message + '</div>'; }
+      } catch (e) { document.getElementById('profileCard').innerHTML = '<div class="text-danger">' + esc(e.message) + '</div>'; }
       try {
         const d = await Api.driver.documents();
         const list = Array.isArray(d) ? d : (d.documents || []);
@@ -86,7 +86,7 @@
               return '<div class="py-2 border-bottom"><div class="d-flex justify-content-between"><span>' + dtype + link + '</span><span class="status-badge ' + cls + '">' + st + '</span></div>' + reasonLine + '</div>';
             }).join('')
           : '<span class="text-muted small">No documents listed.</span>';
-      } catch (e) { document.getElementById('docs').innerHTML = '<span class="text-muted small">' + e.message + '</span>'; }
+      } catch (e) { document.getElementById('docs').innerHTML = '<span class="text-muted small">' + esc(e.message) + '</span>'; }
     })();
   </script>
   <script src="../js/driver-ui.js"></script>

@@ -27,12 +27,18 @@
       </div>
     </div>
     <div class="app-content">
-      <div id="activeMap" class="mb-3 rounded-3 overflow-hidden border" style="height:320px;min-height:280px;background:#e8f4f3;"></div>
+      <div id="banner"></div>
+      <div id="activeMap" class="mb-3 rounded-3 overflow-hidden border" style="height:320px;min-height:260px;background:#e8f4f3;"></div>
       <div class="card-zenji p-4 mb-3" id="info"><div class="text-center py-3"><div class="spinner-zenji mx-auto"></div></div></div>
-      <div class="card-zenji p-4">
-        <h6 class="fw-bold mb-3">Update status</h6>
-        <div class="d-flex flex-wrap gap-2" id="statusBtns"></div>
-        <p class="small text-muted mt-3 mb-0"><i class="bi bi-geo-alt me-1"></i>Your live location is shared with the rider while this ride is active.</p>
+      <div class="card-zenji p-4" id="stepBox">
+        <h6 class="fw-bold mb-1" id="stepTitle"></h6>
+        <p class="small text-muted" id="stepHint"></p>
+        <div class="mb-3 d-none" id="pinWrap">
+          <label class="form-label small">Rider's 4-digit PIN</label>
+          <input id="pin" class="form-control form-control-lg text-center" inputmode="numeric" maxlength="4" autocomplete="one-time-code" style="letter-spacing:.5em" placeholder="••••">
+        </div>
+        <div class="d-grid gap-2" id="stepBtns"></div>
+        <p class="small text-muted mt-3 mb-0"><i class="bi bi-geo-alt me-1"></i>Your live location is shared with the rider during this ride.</p>
       </div>
     </div>
   </div>
@@ -45,170 +51,132 @@
     if (!requireAuth('driver')) throw new Error('auth');
     const id = new URLSearchParams(location.search).get('id');
     if (!id) location.href = 'requests.html';
+    const $ = (x) => document.getElementById(x);
+    const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
 
-    const flow = ['arriving', 'arrived', 'started', 'completed'];
-    let ride = null;
-    let myPos = null;
-    let mapApi = null;
-    let locTimer = null;
-    let pollTimer = null;
-
-    function markersFromRide() {
-      const list = [];
-      if (ride) {
-        if (ride.pickupLat != null || ride.pickup_lat != null) {
-          list.push({
-            id: 'pickup',
-            lat: Number(ride.pickupLat ?? ride.pickup_lat),
-            lng: Number(ride.pickupLng ?? ride.pickup_lng),
-            label: 'P',
-            title: 'Pickup: ' + (ride.pickupAddress || ride.pickup_address || '')
-          });
-        }
-        if (ride.destinationLat != null || ride.destination_lat != null) {
-          list.push({
-            id: 'dest',
-            lat: Number(ride.destinationLat ?? ride.destination_lat),
-            lng: Number(ride.destinationLng ?? ride.destination_lng),
-            label: 'D',
-            title: 'Destination: ' + (ride.destinationAddress || ride.destination_address || '')
-          });
-        }
-      }
-      if (myPos) {
-        let icon = null;
-        try { if (window.ZenjiMap && ZenjiMap.driverIcon) icon = ZenjiMap.driverIcon('#0d9488'); } catch (_) {}
-        list.push({
-          id: 'me',
-          lat: myPos.lat,
-          lng: myPos.lng,
-          title: 'You (driver)',
-          icon: icon || undefined,
-          label: icon ? undefined : 'D'
-        });
-      }
-      return list;
-    }
-
-    function refreshMap() {
-      if (!mapApi) return;
-      const m = markersFromRide();
-      mapApi.setMarkers(m, { fitBounds: m.length > 1 });
-      drawRoute();
-    }
-
-    // Road line: driver -> pickup until the trip starts, then pickup -> destination.
-    let lastRouteKey = '';
-    function drawRoute() {
-      if (!mapApi || !ride || typeof mapApi.setRoute !== 'function') return;
-      const pt = (la, ln) => (la == null || ln == null || !isFinite(Number(la)) || !isFinite(Number(ln))) ? null : { lat: Number(la), lng: Number(ln) };
-      const pickup = pt(ride.pickupLat ?? ride.pickup_lat, ride.pickupLng ?? ride.pickup_lng);
-      const dest = pt(ride.destinationLat ?? ride.destination_lat, ride.destinationLng ?? ride.destination_lng);
-      const st = String(ride.status || '').toLowerCase();
-      const started = st === 'started' || st === 'in_progress';
-      const from = started ? pickup : (myPos || null);
-      const to = started ? dest : pickup;
-      if (!from || !to) { mapApi.clearRoute(); lastRouteKey = ''; return; }
-      // Skip the request when nothing meaningful moved (~100 m) to avoid needless API calls.
-      const key = [from.lat.toFixed(3), from.lng.toFixed(3), to.lat.toFixed(3), to.lng.toFixed(3)].join(',');
-      if (key === lastRouteKey) return;
-      lastRouteKey = key;
-      mapApi.setRoute(from, to);
-    }
+    let ride = null, myPos = null, mapApi = null, locTimer = null, pollTimer = null;
+    let polling = false, busy = false, failures = 0, routeKey = '', fitted = false, ended = false;
 
     async function loadRide() {
+      if (polling || ended) return;
+      polling = true;
       try {
-        let r = null;
-        if (Api.driver.getRide) {
-          r = await Api.driver.getRide(id);
-        } else {
-          const hist = await Api.driver.history(50);
-          const list = Array.isArray(hist) ? hist : (hist?.rides || hist?.data || []);
-          r = list.find(x => String(x.id) === String(id)) || null;
-        }
-        if (r) {
-          ride = r;
-          const st = (r.status || 'active').toLowerCase();
-          const pickup = r.pickupAddress || r.pickup_address || 'Pickup';
-          const dest = r.destinationAddress || r.destination_address || 'Destination';
-          const fare = r.fare || r.estimatedFare || r.estimated_fare || r.amount;
-          document.getElementById('info').innerHTML =
-            '<div class="d-flex justify-content-between mb-2">' +
-            '<span class="status-badge status-active">' + st + '</span>' +
-            '<strong>' + formatMoney(fare) + '</strong></div>' +
-            '<div class="mb-1"><i class="bi bi-circle-fill text-success me-2" style="font-size:0.5rem"></i>' + pickup + '</div>' +
-            '<div class="mb-2"><i class="bi bi-geo-alt-fill text-danger me-2"></i>' + dest + '</div>' +
-            '<div class="small text-muted">Type: ' + String(r.rideType || r.ride_type || '').toUpperCase() +
-            ' · Ride #' + id + '</div>';
-          refreshMap();
-        } else {
-          document.getElementById('info').innerHTML =
-            '<div class="mb-2"><span class="status-badge status-active">Active</span></div>' +
-            '<div class="fw-semibold">Ride #' + id + '</div>' +
-            '<p class="small text-muted mb-0">Update status as you progress through the trip.</p>';
-        }
+        ride = await Api.driver.getRide(id);
+        failures = 0; $('banner').innerHTML = '';
+        render(); refreshMap();
       } catch (e) {
-        document.getElementById('info').innerHTML =
-          '<div class="fw-semibold">Ride #' + id + '</div><p class="small text-muted mb-0">' + (e.message || 'Unable to load ride details') + '</p>';
+        failures++;
+        if (!ride) $('info').innerHTML = '<div class="text-danger">' + esc(e.message) + '</div><button class="btn btn-outline-secondary btn-sm mt-3" onclick="loadRide()">Try again</button>';
+        else if (failures >= 2) $('banner').innerHTML = '<div class="alert alert-warning py-2 small">Connection lost — retrying…</div>';
+      } finally { polling = false; }
+      clearTimeout(pollTimer);
+      if (!ended) pollTimer = setTimeout(loadRide, document.hidden ? 15000 : (failures ? Math.min(4000 * (failures + 1), 20000) : 3000));
+    }
+
+    function stopAll() { ended = true; clearTimeout(pollTimer); clearInterval(locTimer); }
+
+    function render() {
+      const r = ride, st = String(r.status).toLowerCase();
+      const due = r.amount_due != null ? r.amount_due : r.estimated_fare;
+      $('info').innerHTML =
+        '<div class="d-flex justify-content-between align-items-center mb-2"><span class="status-badge status-active">' + esc(st) + '</span><strong>' + formatMoney(due) + '</strong></div>' +
+        '<div class="mb-1"><i class="bi bi-circle-fill text-success me-2" style="font-size:.5rem"></i>' + esc(r.pickup_address || 'Pickup') + '</div>' +
+        '<div class="mb-2"><i class="bi bi-geo-alt-fill text-danger me-2"></i>' + esc(r.destination_address || 'Destination') + '</div>' +
+        '<div class="small text-muted">' + esc(String(r.ride_type || '').toUpperCase()) + ' · ' + esc(r.ride_code || ('Ride #' + id)) + '</div>' +
+        (r.rider_name ? '<div class="mt-2 small"><i class="bi bi-person me-1"></i>' + esc(r.rider_name) + (r.rider_phone ? ' · <a href="tel:' + esc(r.rider_phone) + '">Call</a>' : '') + '</div>' : '');
+
+      if (st === 'cancelled') { stopAll(); showToast('This ride was cancelled.', 'warning'); setTimeout(() => location.href = 'requests.html', 1800); return; }
+      if (st === 'completed') {
+        stopAll();
+        const share = r.driver_earnings != null ? ' Your share: ' + formatMoney(r.driver_earnings) + '.' : '';
+        $('stepTitle').textContent = 'Trip completed';
+        $('stepHint').textContent = 'Payment received.' + share;
+        $('pinWrap').classList.add('d-none');
+        $('stepBtns').innerHTML = '<a class="btn btn-primary-zenji" href="requests.html">Back to requests</a>';
+        return;
       }
 
-      document.getElementById('statusBtns').innerHTML =
-        flow.map(s => '<button class="btn btn-outline-secondary btn-sm" onclick="setStatus(\'' + s + '\')">' +
-          s.charAt(0).toUpperCase() + s.slice(1) + '</button>').join('') +
-        '<button class="btn btn-outline-danger btn-sm" onclick="setStatus(\'cancelled\')">Cancel</button>';
+      const btns = []; let title = '', hint = '', pin = false;
+      const cancel = '<button class="btn btn-outline-danger btn-sm" onclick="act(\'cancelled\')">Cancel ride</button>';
+      if (st === 'accepted') { title = 'Head to the pickup'; hint = 'Tap when you start driving to the rider.'; btns.push(['arriving', 'I am on my way', true], cancel); }
+      else if (st === 'arriving') { title = 'On the way to pickup'; hint = 'Tap when you reach the pickup point.'; btns.push(['arrived', 'I have arrived', true], cancel); }
+      else if (st === 'arrived') { title = 'Start the trip'; hint = 'Ask the rider for the 4-digit PIN shown in their app.'; pin = true; btns.push(['started', 'Start trip', true], cancel); }
+      else if (st === 'started' && !r.reached_destination) { title = 'Trip in progress'; hint = 'Tap when you reach the destination so the rider can pay.'; btns.push(['reached', 'I have reached the destination', true]); }
+      else if (st === 'started') {
+        const ps = r.payment_status;
+        title = 'Waiting for payment';
+        if (ps === 'awaiting_cash') { hint = 'The rider is paying ' + formatMoney(due) + ' in cash. Confirm once you have received it.'; btns.push(['cash', 'Cash received — end trip', true]); }
+        else if (ps === 'processing') hint = 'The rider is approving a mobile-money payment. The trip ends automatically.';
+        else hint = 'The rider is choosing how to pay ' + formatMoney(due) + '. This updates automatically.';
+      }
+      $('stepTitle').textContent = title; $('stepHint').textContent = hint;
+      $('pinWrap').classList.toggle('d-none', !pin);
+      $('stepBtns').innerHTML = btns.map(b => typeof b === 'string' ? b : '<button class="btn btn-primary-zenji" ' + (busy ? 'disabled' : '') + ' onclick="act(\'' + b[0] + '\')">' + esc(b[1]) + '</button>').join('');
     }
 
-    async function setStatus(status) {
+    async function act(action) {
+      if (busy) return;
+      if (action === 'cancelled' && !confirm('Cancel this ride?')) return;
+      let otp;
+      if (action === 'started') {
+        otp = $('pin').value.trim();
+        if (!/^\d{4}$/.test(otp)) { showToast('Enter the rider\'s 4-digit PIN.', 'error'); $('pin').focus(); return; }
+      }
+      busy = true; render();
       try {
-        await Api.driver.updateStatus(id, status);
-        showToast('Status: ' + status);
-        if (status === 'completed' || status === 'cancelled') {
-          clearInterval(locTimer);
-          clearInterval(pollTimer);
-          setTimeout(() => location.href = 'history.html', 1000);
-        } else {
-          loadRide();
-        }
+        if (action === 'reached') await Api.driver.reachedDestination(id);
+        else if (action === 'cash') await Api.driver.collectCash(id);
+        else await Api.driver.updateStatus(id, action, otp);
+        if (action === 'started') $('pin').value = '';
       } catch (e) { showToast(e.message, 'error'); }
+      busy = false;
+      clearTimeout(pollTimer); polling = false; loadRide();
     }
 
+    function markers() {
+      const list = [];
+      if (ride) {
+        const pl = num(ride.pickup_lat), pn = num(ride.pickup_lng), dl = num(ride.destination_lat), dn = num(ride.destination_lng);
+        if (pl != null) list.push({ id: 'pickup', lat: pl, lng: pn, label: 'P', title: 'Pickup' });
+        if (dl != null) list.push({ id: 'dest', lat: dl, lng: dn, label: 'D', title: 'Destination' });
+      }
+      if (myPos) { let icon = null; try { icon = ZenjiMap.driverIcon('#0d9488'); } catch (_) {} list.push({ id: 'me', lat: myPos.lat, lng: myPos.lng, title: 'You', icon: icon || undefined, label: icon ? undefined : 'D' }); }
+      return list;
+    }
+    function refreshMap() {
+      if (!mapApi || !ride) return;
+      const m = markers(); mapApi.setMarkers(m, { fitBounds: false });
+      if (m.length > 1 && !fitted) { mapApi.fitTo(m); fitted = true; }
+      const st = String(ride.status).toLowerCase();
+      const started = st === 'started';
+      const pickup = num(ride.pickup_lat) != null ? { lat: num(ride.pickup_lat), lng: num(ride.pickup_lng) } : null;
+      const dest = num(ride.destination_lat) != null ? { lat: num(ride.destination_lat), lng: num(ride.destination_lng) } : null;
+      const from = started ? pickup : myPos, to = started ? dest : pickup;
+      if (!from || !to) return;
+      const key = [from.lat.toFixed(3), from.lng.toFixed(3), to.lat.toFixed(3), to.lng.toFixed(3)].join(',');
+      if (key !== routeKey) { routeKey = key; try { mapApi.setRoute(from, to); } catch (_) {} }
+    }
+
+    let sharing = false;
     async function shareLoc() {
+      if (sharing || ended) return; sharing = true;
       try {
         const pos = await ZenjiMap.getCurrentPosition(8000);
-        if (!pos) return;
-        myPos = pos;
-        await Api.driver.updateLocation(pos.lat, pos.lng);
-        refreshMap();
-      } catch (_) {}
+        if (pos) { myPos = pos; refreshMap(); await Api.driver.updateLocation(pos.lat, pos.lng, pos.heading, pos.speed, id); }
+      } catch (_) {} finally { sharing = false; }
     }
 
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) { clearTimeout(pollTimer); loadRide(); } });
+    window.addEventListener('beforeunload', stopAll);
+
     (async function init() {
-      await loadRide();
+      loadRide();
       try {
         const center = (ZENJIGO_CONFIG.MAP && ZENJIGO_CONFIG.MAP.DEFAULT_CENTER) || { lat: -6.1659, lng: 39.2026 };
-        const here = await ZenjiMap.getCurrentPosition(6000);
-        mapApi = await ZenjiMap.createMap('activeMap', {
-          center: here || center,
-          zoom: 14,
-          markers: markersFromRide(),
-          fitBounds: true
-        });
-        if (here) {
-          myPos = here;
-          refreshMap();
-        }
-      } catch (e) {
-        console.warn('Map', e.message || e);
-        const box = document.getElementById('activeMap');
-        if (box) box.innerHTML = '<div class="p-4 text-center text-muted small">Map unavailable. Set GOOGLE_MAPS_API_KEY in js/config.js.</div>';
-      }
-      shareLoc();
-      locTimer = setInterval(shareLoc, 12000);
-      pollTimer = setInterval(loadRide, 20000);
-      window.addEventListener('beforeunload', () => {
-        clearInterval(locTimer);
-        clearInterval(pollTimer);
-      });
+        mapApi = await ZenjiMap.createMap('activeMap', { center, zoom: 14, markers: [] });
+        refreshMap();
+      } catch (e) { $('activeMap').innerHTML = '<div class="p-4 text-center text-muted small">Map unavailable right now.</div>'; }
+      shareLoc(); locTimer = setInterval(shareLoc, 5000);
     })();
   </script>
   <script src="../js/driver-ui.js"></script>

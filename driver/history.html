@@ -53,7 +53,7 @@
           const amount = val(r, 'driverEarning', 'driver_earning', 'driver_share', 'final_fare', 'finalFare', 'estimated_fare', 'estimatedFare', 'fare', 'amount');
           return `<div class="d-flex justify-content-between px-3 py-3 border-bottom gap-3"><div class="min-w-0"><div class="fw-semibold">${esc(pickup)} → ${esc(dropoff)}</div><div class="small text-muted">${esc(date ? formatDate(date) : 'Date unavailable')} · ${esc(type)}</div></div><div class="text-end flex-shrink-0"><div class="fw-semibold">${formatMoney(amount || 0)}</div><span class="status-badge status-${statusClass}">${esc(status)}</span></div></div>`;
         }).join('');
-      } catch (e) { document.getElementById('list').innerHTML = '<div class="text-center py-4 text-danger">' + e.message + '</div>'; }
+      } catch (e) { document.getElementById('list').innerHTML = '<div class="text-center py-4 text-danger">' + esc(e.message) + '</div>'; }
     })();
   </script>
   <script src="../js/driver-ui.js"></script>

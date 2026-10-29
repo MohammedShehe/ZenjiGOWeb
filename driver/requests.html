@@ -93,7 +93,7 @@
         }
         if (mapApi) mapApi.setMarkers(requestMarkers(list), { fitBounds: true });
       } catch (e) {
-        document.getElementById('list').innerHTML = '<div class="text-center py-4 text-danger">' + e.message + '</div>';
+        document.getElementById('list').innerHTML = '<div class="text-center py-4 text-danger">' + esc(e.message) + '</div>';
       }
     }
 

@@ -45,38 +45,55 @@ const Api = (() => {
     localStorage.removeItem('userData');
   };
 
-  async function tryRefresh() {
+  let refreshInFlight = null;
+  // Several widgets poll at once; refresh tokens rotate, so only ONE refresh may run at a time.
+  function tryRefresh() {
+    if (!refreshInFlight) refreshInFlight = doRefresh().finally(() => { refreshInFlight = null; });
+    return refreshInFlight;
+  }
+
+  async function doRefresh() {
     const { refresh } = getTokens();
     if (!refresh) return false;
     try {
-      const res = await fetch(`${ZENJIGO_CONFIG.API_BASE}/auth/refresh`, {
+      const res = await fetchWithTimeout(`${ZENJIGO_CONFIG.API_BASE}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ refreshToken: refresh })
-      });
-      const data = await res.json();
+      }, 20000);
+      const data = await res.json().catch(() => ({}));
       if (res.ok && data.success !== false && data.data) {
         setTokens(data.data.accessToken || data.data.access, data.data.refreshToken || data.data.refresh);
         return true;
       }
-    } catch (e) {}
-    clearTokens();
+      if (res.status === 401 || res.status === 403) { clearTokens(); return false; }
+    } catch (e) { /* network blip: keep tokens, try again next time */ }
     return false;
   }
 
+  function fetchWithTimeout(url, opts, ms) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), ms || 25000);
+    return fetch(url, Object.assign({}, opts, { signal: ctrl.signal })).finally(() => clearTimeout(timer));
+  }
+
   function friendlyApiMessage(message, status) {
-    const raw = String(message || '').toLowerCase();
-    if (status === 401 || status === 403) return 'Your session may have expired. Please sign in again and try once more.';
+    const text = String(message || '').trim();
+    const raw = text.toLowerCase();
+    const technical = /network|fetch|cors|api at|stack|exception|undefined|null reference|sql|database|internal server|econn|errno|<html/.test(raw);
+    // Clear sentences written by our own server ("Incorrect PIN...", "Your wallet balance is not enough...") are shown as they are.
+    if (text && text.length <= 200 && !technical && status !== 500 && status !== 502 && status !== 503 && status !== 504) {
+      if (/invalid otp|incorrect otp|otp expired|wrong code/.test(raw)) return 'That verification code is not valid or has expired. Please request a new code.';
+      return text;
+    }
+    if (status === 401) return 'Your session has expired. Please sign in again.';
+    if (status === 403) return 'You do not have permission to do that.';
     if (status === 404) return 'We could not find what you requested. Please refresh the page and try again.';
-    if (status === 409) return 'This action conflicts with an existing request. Please review your details and try again.';
+    if (status === 409) return 'This changed in the meantime. Please refresh and try again.';
+    if (status === 429) return 'You are doing that too quickly. Please wait a moment and try again.';
     if (status === 422 || status === 400) return 'Please check the information you entered and try again.';
     if (status >= 500) return 'Something went wrong on our side. Please try again shortly.';
-    if (/network|fetch|cors|api at|stack|exception|undefined|null reference|sql|database|internal server/.test(raw))
-      return 'We could not complete that request. Please check your connection and try again.';
-    if (/invalid otp|incorrect otp|otp expired|wrong code/.test(raw)) return 'That verification code is not valid or has expired. Please request a new code.';
-    if (/already exists|already registered/.test(raw)) return 'An account with these details may already exist. Please sign in or use different details.';
-    if (/too many|rate limit/.test(raw)) return 'You have tried too many times. Please wait a little and try again.';
-    return message && String(message).length < 180 ? message : 'We could not complete that request. Please try again.';
+    return 'We could not complete that request. Please check your connection and try again.';
   }
 
   async function request(method, path, { body = null, auth = true, isForm = false } = {}) {
@@ -94,9 +111,10 @@ const Api = (() => {
 
     let res;
     try {
-      res = await fetch(`${ZENJIGO_CONFIG.API_BASE}${path}`, opts);
+      res = await fetchWithTimeout(`${ZENJIGO_CONFIG.API_BASE}${path}`, opts, isForm ? 120000 : 25000);
     } catch (cause) {
-      const err = new Error('We could not connect to ZenjiGO right now. Please check your internet connection and try again.');
+      const slow = cause && cause.name === 'AbortError';
+      const err = new Error(slow ? 'The connection is slow. Please try again.' : 'We could not connect to ZenjiGO right now. Please check your internet connection and try again.');
       err.cause = cause;
       throw err;
     }
@@ -105,7 +123,7 @@ const Api = (() => {
       if (await tryRefresh()) {
         const { access } = getTokens();
         if (access) headers['Authorization'] = `Bearer ${access}`;
-        try { res = await fetch(`${ZENJIGO_CONFIG.API_BASE}${path}`, opts); } catch (cause) { const err = new Error('We could not connect to ZenjiGO right now. Please try again in a moment.'); err.cause = cause; throw err; }
+        try { res = await fetchWithTimeout(`${ZENJIGO_CONFIG.API_BASE}${path}`, opts, isForm ? 120000 : 25000); } catch (cause) { const err = new Error('We could not connect to ZenjiGO right now. Please try again in a moment.'); err.cause = cause; throw err; }
       }
     }
 
@@ -184,6 +202,9 @@ const Api = (() => {
       data('POST', `/rider/rides/${id}/rating`, {
         body: { stars, ...(feedback ? { feedback } : {}), ...(tip != null ? { tip } : {}) }
       }),
+    /** Pay at the destination: method = cash | wallet | momo | card | bank. */
+    payRide: (id, method, phone) =>
+      data('POST', `/rider/rides/${id}/pay`, { body: { method, ...(phone ? { phone } : {}) } }),
     history: () => data('GET', '/rider/rides'),
     walletBalance: () => data('GET', '/rider/wallet'),
     walletTransactions: () => data('GET', '/rider/wallet/transactions'),
@@ -237,14 +258,18 @@ const Api = (() => {
     placesAutocomplete: (input) => data('GET', `/driver/places/autocomplete?input=${encodeURIComponent(input)}`, { auth: false }),
     placeDetails: (placeId) => data('GET', `/driver/places/details?placeId=${encodeURIComponent(placeId)}`, { auth: false }),
     setOnline: (online) => data('PATCH', '/driver/online', { body: { online } }),
-    updateLocation: (lat, lng, heading, speed) =>
+    updateLocation: (lat, lng, heading, speed, rideId) =>
       data('POST', '/driver/location', {
-        body: { lat, lng, ...(heading != null ? { heading } : {}), ...(speed != null ? { speed } : {}) }
+        body: { lat, lng, ...(heading != null ? { heading } : {}), ...(speed != null ? { speed } : {}), ...(rideId ? { rideId } : {}) }
       }),
     rideRequests: () => data('GET', '/driver/ride-requests'),
     acceptRide: (id) => data('POST', `/driver/rides/${id}/accept`),
-    updateStatus: (id, status) =>
-      data('PATCH', `/driver/rides/${id}/status`, { body: { status } }),
+    getRide: (id) => data('GET', `/driver/rides/${id}`),
+    /** otp = the rider's 4-digit trip PIN (required when status = 'started'). */
+    updateStatus: (id, status, otp) =>
+      data('PATCH', `/driver/rides/${id}/status`, { body: { status, ...(otp ? { otp: String(otp) } : {}) } }),
+    reachedDestination: (id) => data('POST', `/driver/rides/${id}/reached-destination`),
+    collectCash: (id) => data('POST', `/driver/rides/${id}/collect-cash`),
     history: (limit = 50) => data('GET', `/driver/rides?limit=${limit}`),
     finance: () => data('GET', '/driver/finance'),
     earnings: (from, to) => {

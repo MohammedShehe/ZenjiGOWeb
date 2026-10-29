@@ -289,7 +289,7 @@
             </div>
           </div>`).join('');
       } catch (e) {
-        $('txns').innerHTML = `<div class="text-center py-4 text-muted small">${e.message}</div>`;
+        $('txns').innerHTML = `<div class="text-center py-4 text-muted small">${esc(e.message)}</div>`;
       }
     }
 

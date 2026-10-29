@@ -45,12 +45,12 @@
         else {
           el.innerHTML = list.map(p => '<div class="col-md-4"><div class="feature-card"><h6 class="fw-bold">' + (p.name||p.title||'Tour') + '</h6><p class="small text-muted">' + (p.description||'') + '</p><div class="fw-semibold text-teal mb-2">' + formatMoney(p.price||p.fare) + '</div><button class="btn btn-aqua btn-sm" onclick="book(\'' + p.id + '\')">Book</button></div></div>').join('');
         }
-      } catch (e) { document.getElementById('packages').innerHTML = '<div class="col-12 text-danger">' + e.message + '</div>'; }
+      } catch (e) { document.getElementById('packages').innerHTML = '<div class="col-12 text-danger">' + esc(e.message) + '</div>'; }
       try {
         const tours = await Api.rider.tours();
         const list = Array.isArray(tours) ? tours : [];
         document.getElementById('bookings').innerHTML = list.length ? list.map(t => '<div class="px-3 py-3 border-bottom"><div class="fw-semibold">' + (t.packageName||t.name||'Tour') + '</div><div class="small text-muted">' + (t.status||'') + ' · ' + formatDate(t.createdAt||t.date) + '</div></div>').join('') : '<div class="text-center py-3 text-muted small">No bookings yet.</div>';
-      } catch (e) { document.getElementById('bookings').innerHTML = '<div class="p-3 text-danger small">' + e.message + '</div>'; }
+      } catch (e) { document.getElementById('bookings').innerHTML = '<div class="p-3 text-danger small">' + esc(e.message) + '</div>'; }
     }
     async function book(packageId) {
       try {

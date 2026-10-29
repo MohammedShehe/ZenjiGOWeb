@@ -29,33 +29,37 @@
       </div>
     </div>
     <div class="app-content">
+      <div id="banner"></div>
       <div class="row g-4">
         <div class="col-lg-7">
-          <div id="mapBox" class="mb-3 rounded-3 overflow-hidden border" style="height:280px;min-height:240px;background:#e8f4f3;"></div>
-          </div>
-          <div class="card-zenji p-4" id="rideInfo">
-            <div class="text-center py-4"><div class="spinner-zenji mx-auto"></div></div>
-          </div>
+          <div id="mapBox" class="mb-3 rounded-3 overflow-hidden border" style="height:320px;min-height:240px;background:#e8f4f3;"></div>
+          <div class="card-zenji p-4" id="rideInfo"><div class="text-center py-4"><div class="spinner-zenji mx-auto"></div></div></div>
         </div>
         <div class="col-lg-5">
-          <div class="card-zenji p-4 mb-3" id="driverBox" style="display:none">
-            <h6 class="fw-bold">Driver</h6>
-            <div id="driverInfo"></div>
+          <div class="card-zenji p-4 mb-3 d-none" id="pinBox">
+            <div class="small text-muted">Your trip PIN — tell it to your driver to start the ride</div>
+            <div class="display-5 fw-bold text-center" id="pinValue" style="letter-spacing:.35em"></div>
           </div>
-          <div class="card-zenji p-4" id="actionsBox" style="display:none">
-            <div class="d-grid gap-2" id="actions"></div>
+          <div class="card-zenji p-4 mb-3 d-none" id="driverBox"><h6 class="fw-bold">Your driver</h6><div id="driverInfo"></div></div>
+          <div class="card-zenji p-4 mb-3 d-none" id="payBox">
+            <h6 class="fw-bold mb-1">You have arrived — pay for your trip</h6>
+            <div class="fs-4 fw-bold mb-3" id="payAmount"></div>
+            <div class="mb-3" id="payMethods"></div>
+            <div class="mb-3 d-none" id="phoneWrap">
+              <label class="form-label small">Mobile money number</label>
+              <input type="tel" id="payPhone" class="form-control" placeholder="e.g. 0712345678" autocomplete="tel">
+            </div>
+            <button class="btn btn-primary-zenji w-100" id="payBtn" onclick="payNow()">Pay now</button>
+            <p class="small text-muted mt-2 mb-0" id="payHint"></p>
           </div>
-          <div class="card-zenji p-4 mt-3 d-none" id="rateBox">
-            <h6 class="fw-bold mb-3">Rate this ride</h6>
-            <div class="mb-2">
-              <label class="form-label small">Stars (1-5)</label>
-              <input type="number" id="stars" class="form-control" min="1" max="5" value="5">
-            </div>
-            <div class="mb-3">
-              <label class="form-label small">Feedback</label>
-              <textarea id="feedback" class="form-control" rows="2"></textarea>
-            </div>
-            <button class="btn btn-primary-zenji" onclick="submitRating()">Submit rating</button>
+          <div class="card-zenji p-4 mb-3 d-none" id="actionsBox"><div class="d-grid gap-2" id="actions"></div></div>
+          <div class="card-zenji p-4 d-none" id="rateBox">
+            <h6 class="fw-bold mb-2">Trip complete — rate your driver</h6>
+            <div class="fs-2 mb-2" id="starRow" role="radiogroup" aria-label="Rating"></div>
+            <textarea id="feedback" class="form-control mb-2" rows="2" maxlength="300" placeholder="Anything to add? (optional)"></textarea>
+            <label class="form-label small">Add a tip (optional)</label>
+            <div class="d-flex flex-wrap gap-2 mb-3" id="tipRow"></div>
+            <button class="btn btn-primary-zenji w-100" id="rateBtn" onclick="submitRating()">Submit</button>
           </div>
         </div>
       </div>
@@ -65,127 +69,194 @@
   <script src="../js/config.js"></script>
   <script src="../js/api.js"></script>
   <script src="../js/utils.js"></script>
+  <script src="../js/rider-ui.js"></script>
+  <script src="../js/map.js"></script>
   <script>
     if (!requireAuth('rider')) throw new Error('auth');
     const id = new URLSearchParams(location.search).get('id');
     if (!id) location.href = 'history.html';
-    let pollTimer;
+
+    const ACTIVE = ['searching','accepted','arriving','arrived','started'];
+    let ride = null, pollTimer = null, polling = false, failures = 0, mapApi = null;
+    let stars = 5, tip = 0, payMethod = 'cash', paying = false, routeKey = '', fitted = false, ratedDone = false;
+    const $ = (x) => document.getElementById(x);
+    const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
+
     async function load() {
+      if (polling) return;
+      polling = true;
       try {
-        const ride = await Api.rider.getRide(id);
-        render(ride);
-        const st = (ride.status || '').toLowerCase();
-        if (['searching','requested','accepted','arriving','arrived','started'].includes(st)) {
-          try {
-            const track = await Api.rider.track(id);
-            if (window.__rideMap) {
-              const pts = [];
-              const driverLat = Number(track.driverLat ?? (track.location && track.location.lat));
-              const driverLng = Number(track.driverLng ?? (track.location && track.location.lng));
-              const pLat = Number(ride.pickupLat ?? ride.pickup_lat), pLng = Number(ride.pickupLng ?? ride.pickup_lng);
-              const dLat = Number(ride.destinationLat ?? ride.destination_lat), dLng = Number(ride.destinationLng ?? ride.destination_lng);
-              let icon = null;
-              try { icon = ZenjiMap.driverIcon('#0d9488'); } catch (_) {}
-              if (Number.isFinite(driverLat) && Number.isFinite(driverLng) && driverLat !== 0) pts.push({ id: 'driver', lat: driverLat, lng: driverLng, title: 'Your driver', icon: icon || undefined, label: icon ? undefined : 'D' });
-              if (Number.isFinite(pLat) && Number.isFinite(pLng)) pts.push({ id: 'pickup', lat: pLat, lng: pLng, title: 'Pickup', label: 'P' });
-              if (Number.isFinite(dLat) && Number.isFinite(dLng)) pts.push({ id: 'dest', lat: dLat, lng: dLng, title: 'Destination', label: 'D' });
-              window.__rideMap.setMarkers(pts, { fitBounds: false });
-              // Road line: driver -> pickup until the trip starts, then pickup -> destination.
-              try {
-                const okp = (la, ln) => Number.isFinite(la) && Number.isFinite(ln) && la !== 0;
-                const started = st === 'started' || st === 'in_progress';
-                const from = started ? (okp(pLat, pLng) ? { lat: pLat, lng: pLng } : null)
-                                     : (okp(driverLat, driverLng) ? { lat: driverLat, lng: driverLng } : null);
-                const to = started ? (okp(dLat, dLng) ? { lat: dLat, lng: dLng } : null)
-                                   : (okp(pLat, pLng) ? { lat: pLat, lng: pLng } : null);
-                if (from && to) {
-                  const key = [from.lat.toFixed(3), from.lng.toFixed(3), to.lat.toFixed(3), to.lng.toFixed(3)].join(',');
-                  if (key !== window.__rideRouteKey) { window.__rideRouteKey = key; window.__rideMap.setRoute(from, to); }
-                } else { window.__rideMap.clearRoute(); window.__rideRouteKey = ''; }
-              } catch (_) {}
-              if (pts.length && !window.__rideFitted) { window.__rideMap.fitTo(pts); window.__rideFitted = true; }
-            }
-          } catch (e) {}
-          pollTimer = setTimeout(load, 8000);
-        }
+        ride = await Api.rider.getRide(id);
+        failures = 0;
+        $('banner').innerHTML = '';
+        render();
+        await updateMap();
       } catch (e) {
-        document.getElementById('rideInfo').innerHTML = '<div class="text-danger">' + e.message + '</div>';
-      }
+        failures++;
+        if (!ride) $('rideInfo').innerHTML = '<div class="text-danger">' + esc(e.message) + '</div><button class="btn btn-outline-secondary btn-sm mt-3" onclick="load()">Try again</button>';
+        else if (failures >= 2) $('banner').innerHTML = '<div class="alert alert-warning py-2 small">Connection lost — retrying…</div>';
+      } finally { polling = false; }
+      schedule();
     }
-    function render(r) {
-      const st = (r.status || '').toLowerCase();
-      document.getElementById('rideInfo').innerHTML = '<div class="d-flex justify-content-between mb-3"><span class="status-badge status-' + (st==='completed'?'online':st==='cancelled'?'offline':'active') + '">' + r.status + '</span><span class="fw-bold">' + formatMoney(r.fare || r.totalFare || r.amount) + '</span></div><div class="mb-2"><i class="bi bi-circle-fill text-success me-2" style="font-size:0.5rem"></i>' + (r.pickupAddress || 'Pickup') + '</div><div class="mb-3"><i class="bi bi-geo-alt-fill text-danger me-2"></i>' + (r.destinationAddress || 'Destination') + '</div><div class="small text-muted">Type: ' + (r.rideType||'').toUpperCase() + ' · ' + formatDate(r.createdAt||r.created_at) + '</div>';
-      if (r.driver) {
-        document.getElementById('driverBox').style.display = 'block';
-        document.getElementById('driverInfo').innerHTML = '<div class="fw-semibold">' + (r.driver.fullName || r.driver.name || 'Driver') + '</div><div class="small text-muted">' + (r.driver.vehicleType || '') + ' · ' + (r.driver.plateNumber || '') + '</div><div class="small">' + (r.driver.phone || '') + '</div>';
-      }
-      const actions = document.getElementById('actions');
-      document.getElementById('actionsBox').style.display = 'block';
-      let html = '';
-      if (['searching','requested','accepted','arriving','arrived'].includes(st)) {
-        html += '<button class="btn btn-outline-danger" onclick="cancelRide()">Cancel ride</button>';
-        html += '<p class="small text-muted mt-2 mb-0" id="cancelFeeHint"><i class="bi bi-info-circle me-1"></i>Cancellation near pickup or after the driver has accepted may incur a fee (per platform policy).</p>';
-      }
-      if (st === 'completed' && !r.rating) {
-        document.getElementById('rateBox').classList.remove('d-none');
-      }
-      if (!html) html = '<p class="small text-muted mb-0">No actions available.</p>';
-      actions.innerHTML = html;
+
+    function schedule() {
+      clearTimeout(pollTimer);
+      if (!ride || !ACTIVE.includes(String(ride.status).toLowerCase())) return;
+      if (document.hidden) { pollTimer = setTimeout(load, 15000); return; }
+      pollTimer = setTimeout(load, failures ? Math.min(4000 * (failures + 1), 20000) : 3000);
     }
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) { clearTimeout(pollTimer); load(); } });
+    window.addEventListener('beforeunload', () => clearTimeout(pollTimer));
+
+    function statusText(st, r) {
+      if (st === 'searching') return 'Finding you a driver…';
+      if (st === 'accepted') return 'Driver accepted — on the way';
+      if (st === 'arriving') return 'Driver is coming to you';
+      if (st === 'arrived') return 'Your driver has arrived';
+      if (st === 'started') return r.reached_destination ? 'You have reached your destination' : 'Trip in progress';
+      if (st === 'completed') return 'Trip completed';
+      if (st === 'cancelled') return r.cancel_reason === 'No drivers available' ? 'No drivers available right now' : 'Ride cancelled';
+      return st;
+    }
+
+    function render() {
+      const r = ride, st = String(r.status || '').toLowerCase();
+      const fare = r.status === 'completed' ? (r.total_paid || r.amount_due) : (r.amount_due != null ? r.amount_due : r.estimated_fare);
+      const cls = st === 'completed' ? 'online' : st === 'cancelled' ? 'offline' : 'active';
+      let extra = '';
+      if (st === 'searching') extra = '<div class="small text-muted mt-3"><span class="spinner-border spinner-border-sm me-2"></span>We are contacting drivers near you. This usually takes under a minute.</div>';
+      if (st === 'cancelled' && r.cancel_reason === 'No drivers available') extra = '<a href="book.html" class="btn btn-primary-zenji mt-3">Try again</a>';
+      if (st === 'completed') extra = '<div class="small text-muted mt-3">Paid with ' + esc(r.payment_method || 'cash') + '. Thank you for riding with ZenjiGO.</div>';
+      $('rideInfo').innerHTML =
+        '<div class="d-flex justify-content-between align-items-center mb-3"><span class="status-badge status-' + cls + '">' + esc(statusText(st, r)) + '</span><span class="fw-bold">' + formatMoney(fare) + '</span></div>' +
+        '<div class="mb-2"><i class="bi bi-circle-fill text-success me-2" style="font-size:.5rem"></i>' + esc(r.pickup_address || 'Pickup') + '</div>' +
+        '<div class="mb-3"><i class="bi bi-geo-alt-fill text-danger me-2"></i>' + esc(r.destination_address || 'Destination') + '</div>' +
+        '<div class="small text-muted">' + esc(String(r.ride_type || '').toUpperCase()) + ' · ' + esc(formatDate(r.created_at)) + (r.ride_code ? ' · ' + esc(r.ride_code) : '') + '</div>' + extra;
+
+      // PIN: shown from acceptance until the trip starts
+      const showPin = ['accepted','arriving','arrived'].includes(st) && r.trip_pin;
+      $('pinBox').classList.toggle('d-none', !showPin);
+      if (showPin) $('pinValue').textContent = r.trip_pin;
+
+      // Driver card
+      const d = r.driver;
+      $('driverBox').classList.toggle('d-none', !d || st === 'cancelled');
+      if (d) {
+        const veh = [d.vehicleColor, d.vehicleMake, d.vehicleModel].filter(Boolean).join(' ');
+        $('driverInfo').innerHTML =
+          '<div class="fw-semibold">' + esc(d.fullName || d.name || 'Driver') + (d.rating ? ' · ★ ' + Number(d.rating).toFixed(1) : '') + '</div>' +
+          '<div class="small text-muted">' + esc([veh, d.vehicleType, d.plateNumber].filter(Boolean).join(' · ')) + '</div>' +
+          (d.phone && ACTIVE.includes(st) ? '<a class="btn btn-outline-secondary btn-sm mt-2" href="tel:' + esc(d.phone) + '"><i class="bi bi-telephone me-1"></i>Call driver</a>' : '');
+      }
+
+      // Payment (only once driver confirmed arrival at destination)
+      const needsPay = st === 'started' && r.reached_destination && r.payment_status !== 'paid';
+      $('payBox').classList.toggle('d-none', !needsPay);
+      if (needsPay) renderPay();
+
+      // Cancel
+      const canCancel = ['searching','accepted','arriving','arrived'].includes(st);
+      $('actionsBox').classList.toggle('d-none', !canCancel);
+      $('actions').innerHTML = canCancel ? '<button class="btn btn-outline-danger" onclick="cancelRide()">Cancel ride</button>' : '';
+
+      // Rating
+      const showRate = st === 'completed' && !ratedDone && !r.rating;
+      $('rateBox').classList.toggle('d-none', !showRate);
+      if (showRate && !$('starRow').children.length) buildRating();
+    }
+
+    function renderPay() {
+      const r = ride, ps = r.payment_status;
+      $('payAmount').textContent = formatMoney(r.amount_due);
+      if (!$('payMethods').dataset.built) {
+        $('payMethods').dataset.built = '1';
+        payMethod = ['cash','wallet','momo'].includes(r.payment_method) ? r.payment_method : 'cash';
+        const opts = [['cash','Cash','bi-cash'],['wallet','Wallet','bi-wallet2'],['momo','Mobile money','bi-phone']];
+        $('payMethods').innerHTML = opts.map(o => '<label class="d-flex align-items-center gap-2 p-2 border rounded-3 mb-2" style="cursor:pointer"><input type="radio" name="pm" value="' + o[0] + '"' + (o[0] === payMethod ? ' checked' : '') + '><i class="bi ' + o[2] + '"></i> ' + o[1] + '</label>').join('');
+        $('payMethods').addEventListener('change', (e) => { payMethod = e.target.value; syncPay(); });
+      }
+      syncPay();
+      const btn = $('payBtn');
+      if (ps === 'processing') { btn.disabled = true; btn.textContent = 'Waiting for payment confirmation…'; $('payHint').textContent = 'Approve the payment prompt on your phone. This page updates automatically.'; }
+      else if (ps === 'awaiting_cash') { btn.disabled = true; btn.textContent = 'Waiting for driver to confirm cash'; $('payHint').textContent = 'Hand the cash to your driver. The trip ends once they confirm.'; }
+      else if (!paying) { btn.disabled = false; btn.textContent = 'Pay now'; }
+    }
+    function syncPay() {
+      $('phoneWrap').classList.toggle('d-none', payMethod !== 'momo');
+      const hints = { cash: 'Pay your driver in cash. They will confirm to end the trip.', wallet: 'Your wallet is charged immediately.', momo: 'You will get a payment prompt on your phone.' };
+      if (!['processing','awaiting_cash'].includes(ride.payment_status)) $('payHint').textContent = hints[payMethod] || '';
+    }
+    async function payNow() {
+      if (paying) return;
+      let phone;
+      if (payMethod === 'momo') {
+        phone = $('payPhone').value.trim();
+        if (phone) phone = normalizePhone(phone);
+      }
+      paying = true; setLoading($('payBtn'), true);
+      try {
+        ride = await Api.rider.payRide(id, payMethod, phone);
+        showToast(payMethod === 'cash' ? 'Cash payment noted. Your driver will confirm.' : payMethod === 'momo' ? 'Check your phone to approve the payment.' : 'Payment received.');
+        clearTimeout(pollTimer); paying = false; setLoading($('payBtn'), false); load();
+      } catch (e) { paying = false; setLoading($('payBtn'), false); showToast(e.message, 'error'); }
+    }
+
     async function cancelRide() {
-      let feeNote = '';
-      let preview = null;
-      try {
-        if (Api.rider.cancelPreview) preview = await Api.rider.cancelPreview(id);
-      } catch (_) {}
-      const fee = preview && (preview.cancellationFee ?? preview.fee ?? preview.charge);
-      if (fee != null && Number(fee) > 0) {
-        feeNote = '\n\nEstimated cancellation charge: ' + formatMoney(fee) +
-          (preview.reason ? '\n(' + preview.reason + ')' : '') +
-          '\nThis may be deducted from your wallet or next ride.';
-      } else {
-        feeNote = '\n\nNote: Cancelling after a driver accepts or when the driver is nearby may incur a charge according to ZenjiGO policy.';
-      }
-      if (!confirm('Cancel this ride?' + feeNote)) return;
-      try {
-        const result = await Api.rider.cancelRide(id, 'Changed mind');
-        const charged = result && (result.cancellationFee ?? result.fee ?? result.charge ?? result.amountCharged);
-        if (charged != null && Number(charged) > 0) {
-          showToast('Ride cancelled. Fee charged: ' + formatMoney(charged));
-        } else {
-          showToast('Ride cancelled' + (result && result.message ? ': ' + result.message : ''));
-        }
-        load();
-      } catch (e) {
-        showToast(e.message || 'Could not cancel ride', 'error');
-      }
+      if (!confirm('Cancel this ride?')) return;
+      try { await Api.rider.cancelRide(id, 'Changed mind'); showToast('Ride cancelled'); clearTimeout(pollTimer); load(); }
+      catch (e) { showToast(e.message, 'error'); }
+    }
+
+    function buildRating() {
+      const row = $('starRow');
+      const paint = () => { row.innerHTML = [1,2,3,4,5].map(n => '<button type="button" class="btn btn-link p-0 me-1 fs-2 text-decoration-none" style="color:' + (n <= stars ? '#F7C65C' : '#cbd5d9') + '" aria-label="' + n + ' star' + (n > 1 ? 's' : '') + '" onclick="setStars(' + n + ')">★</button>').join(''); };
+      window.setStars = (n) => { stars = n; paint(); };
+      paint();
+      const tips = [0, 500, 1000, 2000];
+      const paintTips = () => { $('tipRow').innerHTML = tips.map(t => '<button type="button" class="btn btn-sm ' + (t === tip ? 'btn-primary-zenji' : 'btn-outline-secondary') + '" onclick="setTip(' + t + ')">' + (t ? formatMoney(t) : 'No tip') + '</button>').join(''); };
+      window.setTip = (t) => { tip = t; paintTips(); };
+      paintTips();
     }
     async function submitRating() {
-      const stars = parseInt(document.getElementById('stars').value, 10);
-      const feedback = document.getElementById('feedback').value.trim();
+      const fb = $('feedback').value.trim();
+      setLoading($('rateBtn'), true);
       try {
-        await Api.rider.rate(id, stars, feedback || undefined);
-        showToast('Thanks for rating!');
-        document.getElementById('rateBox').classList.add('d-none');
-      } catch (e) { showToast(e.message, 'error'); }
+        await Api.rider.rate(id, stars, fb || undefined, tip > 0 ? tip : undefined);
+        ratedDone = true; $('rateBox').classList.add('d-none'); showToast('Thanks for rating!');
+      } catch (e) { setLoading($('rateBtn'), false); showToast(e.message, 'error'); }
     }
-    load();
-    window.addEventListener('beforeunload', function() { clearTimeout(pollTimer); });
+
+    async function updateMap() {
+      if (!mapApi || !ride) return;
+      const st = String(ride.status).toLowerCase();
+      if (!ACTIVE.includes(st)) return;
+      const pts = [];
+      const pLat = num(ride.pickup_lat), pLng = num(ride.pickup_lng), dLat = num(ride.destination_lat), dLng = num(ride.destination_lng);
+      let lat = ride.driver ? num(ride.driver.lat) : null, lng = ride.driver ? num(ride.driver.lng) : null;
+      if (ride.driver && ['accepted','arriving','arrived','started'].includes(st)) {
+        try { const t = await Api.rider.track(id); lat = num(t.driverLat) ?? lat; lng = num(t.driverLng) ?? lng; } catch (_) {}
+      }
+      let icon = null; try { icon = ZenjiMap.driverIcon('#0d9488'); } catch (_) {}
+      if (lat && lng) pts.push({ id: 'driver', lat, lng, title: 'Your driver', icon: icon || undefined, label: icon ? undefined : 'D' });
+      if (pLat != null) pts.push({ id: 'pickup', lat: pLat, lng: pLng, title: 'Pickup', label: 'P' });
+      if (dLat != null) pts.push({ id: 'dest', lat: dLat, lng: dLng, title: 'Destination', label: 'D' });
+      mapApi.setMarkers(pts, { fitBounds: false });
+      const started = st === 'started';
+      const from = started ? (pLat != null ? { lat: pLat, lng: pLng } : null) : (lat && lng ? { lat, lng } : null);
+      const to = started ? (dLat != null ? { lat: dLat, lng: dLng } : null) : (pLat != null ? { lat: pLat, lng: pLng } : null);
+      if (from && to) {
+        const key = [from.lat.toFixed(3), from.lng.toFixed(3), to.lat.toFixed(3), to.lng.toFixed(3)].join(',');
+        if (key !== routeKey) { routeKey = key; try { mapApi.setRoute(from, to); } catch (_) {} }
+      }
+      if (pts.length && !fitted) { mapApi.fitTo(pts); fitted = true; }
+    }
+
+    (async function init() {
+      const center = (window.ZENJIGO_CONFIG && ZENJIGO_CONFIG.MAP && ZENJIGO_CONFIG.MAP.DEFAULT_CENTER) || { lat: -6.1659, lng: 39.2026 };
+      try { if (window.ZenjiMap) mapApi = await ZenjiMap.createMap('mapBox', { center, zoom: 14, markers: [] }); }
+      catch (e) { $('mapBox').innerHTML = '<div class="p-4 text-center text-muted small">Map unavailable right now.</div>'; }
+      load();
+    })();
   </script>
-  <script src="../js/rider-ui.js"></script>
-  <script src="../js/map.js"></script>
-
-<script>
-(async function initRideMap() {
-  if (!window.ZenjiMap) return;
-  const center = (window.ZENJIGO_CONFIG && window.ZENJIGO_CONFIG.MAP && window.ZENJIGO_CONFIG.MAP.DEFAULT_CENTER) || { lat: -6.1659, lng: 39.2026 };
-  try {
-    window.__rideMap = await ZenjiMap.createMap('mapBox', { center, zoom: 14, markers: [] });
-  } catch (e) {
-    console.warn('Map', e.message || e);
-  }
-})();
-</script>
-
 </body>
 </html>
