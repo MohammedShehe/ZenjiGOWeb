@@ -188,7 +188,7 @@ const Api = (() => {
     walletBalance: () => data('GET', '/rider/wallet'),
     walletTransactions: () => data('GET', '/rider/wallet/transactions'),
     topUp: (amount, paymentMethod, phone) =>
-      data('POST', '/rider/wallet/topup', { body: { amount, paymentMethod, phone, provider: 'paygrid' } }),
+      data('POST', '/rider/wallet/topup', { body: { amount, paymentMethod, phone, provider: 'snippe' } }),
     topUpStatus: (id) => data('GET', '/rider/wallet/topup/' + id),
     promos: () => data('GET', '/promos'),
     applyPromo: (code, rideId) =>
