@@ -137,3 +137,56 @@ function fillCountrySelect(selectEl, selectedCode = '+255') {
     `<option value="${c.code}" ${c.code === selectedCode ? 'selected' : ''}>${c.flag} ${c.code} ${c.name}</option>`
   ).join('');
 }
+
+
+/* ------------------------------------------------------------------
+ * East Africa Time (UTC+3) helpers — same convention as the app's TanzaniaTime.
+ * The database stores UTC; riders think in EAT.
+ * ------------------------------------------------------------------ */
+const EAT_OFFSET_HOURS = 3;
+function _pad2(n) { return String(n).padStart(2, '0'); }
+
+/** "Now" expressed as an EAT wall-clock Date whose UTC fields hold the EAT values. */
+function eatNow() { return new Date(Date.now() + EAT_OFFSET_HOURS * 3600000); }
+
+/** 'YYYY-MM-DD' for the current EAT date (+ optional days). */
+function eatDateString(addDays = 0) {
+  const d = new Date(eatNow().getTime() + addDays * 86400000);
+  return d.getUTCFullYear() + '-' + _pad2(d.getUTCMonth() + 1) + '-' + _pad2(d.getUTCDate());
+}
+
+/** EAT date ('YYYY-MM-DD') + time ('HH:mm') picked by the rider -> 'YYYY-MM-DD HH:mm:ss' in UTC for the API. */
+function eatToUtcString(dateStr, timeStr) {
+  const [y, m, d] = String(dateStr).split('-').map(Number);
+  const [hh, mm] = String(timeStr).split(':').map(Number);
+  const utc = new Date(Date.UTC(y, m - 1, d, hh - EAT_OFFSET_HOURS, mm || 0, 0));
+  return utc.getUTCFullYear() + '-' + _pad2(utc.getUTCMonth() + 1) + '-' + _pad2(utc.getUTCDate()) + ' ' +
+    _pad2(utc.getUTCHours()) + ':' + _pad2(utc.getUTCMinutes()) + ':' + _pad2(utc.getUTCSeconds());
+}
+
+/** API datetime (UTC) -> 'YYYY-MM-DD HH:mm EAT'. */
+function formatEat(raw, withTime = true) {
+  if (!raw) return '—';
+  try {
+    const s = String(raw);
+    const d = /[zZ]|[+-]\d\d:?\d\d$/.test(s) ? new Date(s) : new Date(s.replace(' ', 'T') + 'Z');
+    if (isNaN(d.getTime())) return s;
+    const e = new Date(d.getTime() + EAT_OFFSET_HOURS * 3600000);
+    const day = e.getUTCFullYear() + '-' + _pad2(e.getUTCMonth() + 1) + '-' + _pad2(e.getUTCDate());
+    return withTime ? day + ' ' + _pad2(e.getUTCHours()) + ':' + _pad2(e.getUTCMinutes()) + ' EAT' : day;
+  } catch (_) { return String(raw); }
+}
+
+/** Coloured status pill used by parcels and tours. */
+function statusBadge(status) {
+  const s = String(status || 'pending').toLowerCase();
+  const map = { pending: 'warning text-dark', assigned: 'info text-dark', picked_up: 'primary', in_transit: 'primary', in_progress: 'primary', delivered: 'success', completed: 'success', cancelled: 'danger' };
+  return '<span class="badge bg-' + (map[s] || 'secondary') + '">' + esc(s.replace(/_/g, ' ')) + '</span>';
+}
+
+/** Normalise list payloads: array, or { key: [...] } for any of the given keys. */
+function pickList(d, keys) {
+  if (Array.isArray(d)) return d;
+  for (const k of (keys || [])) if (d && Array.isArray(d[k])) return d[k];
+  return [];
+}
