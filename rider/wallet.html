@@ -8,6 +8,45 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="../css/style.css" rel="stylesheet">
+  <style>
+    .topup-method-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .topup-method-btn{border:1.5px solid var(--ui-border,#e5e7eb);background:var(--ui-surface,#fff);border-radius:14px;padding:12px 8px;text-align:center;cursor:pointer;transition:.2s;font-size:.82rem;font-weight:600;color:var(--ui-text,#1f2937)}
+    .topup-method-btn i{display:block;font-size:1.35rem;margin-bottom:4px;color:var(--ui-primary,#0b9992)}
+    .topup-method-btn.active{border-color:var(--ui-primary,#0b9992);background:rgba(11,153,146,.08);box-shadow:0 0 0 3px rgba(11,153,146,.12)}
+    .topup-method-btn:hover{border-color:var(--ui-primary,#0b9992)}
+    .card-scene{width:min(100%,390px);aspect-ratio:1.586;margin:0 auto 18px;perspective:1100px}
+    .bank-card{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .65s cubic-bezier(.2,.75,.2,1)}
+    .bank-card.flipped{transform:rotateY(180deg)}
+    .bank-card-face{position:absolute;inset:0;backface-visibility:hidden;overflow:hidden;border-radius:19px;padding:clamp(18px,4vw,26px);color:#fff;background:linear-gradient(130deg,#0a4d5c,#087f83 58%,#39c6c0);box-shadow:0 16px 35px rgba(0,70,80,.24)}
+    .bank-card-face:before,.bank-card-face:after{content:"";position:absolute;border-radius:50%;pointer-events:none}
+    .bank-card-face:before{width:250px;height:250px;right:-95px;top:-130px;background:rgba(255,255,255,.10)}
+    .bank-card-face:after{width:220px;height:220px;right:-65px;bottom:-160px;border:1px solid rgba(255,255,255,.2)}
+    .bank-card-back{transform:rotateY(180deg);background:linear-gradient(135deg,#124552,#062d3b)}
+    .card-brand-row,.card-number,.card-bottom,.card-chip,.card-strip,.card-cvv{position:relative;z-index:1}
+    .card-brand-row{display:flex;justify-content:space-between;align-items:center;font-size:.8rem;letter-spacing:1.5px;font-weight:800}
+    .card-chip{width:42px;height:31px;margin-top:clamp(15px,3vw,24px);border-radius:7px;background:linear-gradient(135deg,#e5d5a1,#b9a36a);border:1px solid rgba(255,255,255,.35)}
+    .card-number{font-size:clamp(1rem,3.4vw,1.38rem);letter-spacing:2px;white-space:nowrap;margin-top:clamp(12px,3vw,22px);font-variant-numeric:tabular-nums}
+    .card-bottom{display:flex;justify-content:space-between;gap:10px;margin-top:clamp(12px,2.8vw,22px);font-size:.68rem;text-transform:uppercase;letter-spacing:1px}
+    .card-bottom strong{display:block;font-size:.78rem;letter-spacing:.5px;margin-top:4px;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:210px}
+    .card-strip{height:44px;background:#111b24;margin:4px calc(clamp(18px,4vw,26px)*-1) 16px}
+    .card-cvv{margin-left:auto;width:76%;height:36px;background:#f5f7f8;color:#263641;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding:0 12px;font-weight:800;letter-spacing:3px}
+    .card-back-caption{position:relative;z-index:1;text-align:right;margin-top:8px;font-size:.65rem;opacity:.78}
+    .payment-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .payment-form-grid .span-2{grid-column:1/-1}
+    .form-note{font-size:.8rem;color:var(--ui-muted,#6b7280);line-height:1.5}
+    .topup-status{display:none;border-radius:12px;padding:12px 14px;font-size:.88rem;margin-bottom:12px}
+    .topup-status.show{display:block}
+    .topup-status.info{background:rgba(11,153,146,.1);color:#0b766e}
+    .topup-status.success{background:rgba(34,197,94,.12);color:#15803d}
+    .topup-status.error{background:rgba(239,68,68,.1);color:#b91c1c}
+    .topup-status.warning{background:rgba(245,158,11,.12);color:#b45309}
+    @media(max-width:575.98px){
+      .topup-method-grid{grid-template-columns:1fr;gap:8px}
+      .payment-form-grid{grid-template-columns:1fr}
+      .payment-form-grid .span-2{grid-column:auto}
+      .card-bottom strong{max-width:135px}
+    }
+  </style>
 </head>
 <body class="app-shell">
   <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
@@ -18,6 +57,7 @@
       <a href="book.html" class="nav-link"><i class="bi bi-plus-circle"></i> Book Ride</a>
       <a href="history.html" class="nav-link"><i class="bi bi-clock-history"></i> History</a>
       <a href="wallet.html" class="nav-link active"><i class="bi bi-wallet2"></i> Wallet</a>
+      <a href="payments.html" class="nav-link"><i class="bi bi-credit-card"></i> Payments</a>
       <a href="profile.html" class="nav-link"><i class="bi bi-person"></i> Profile</a>
       <a href="#" class="nav-link" onclick="logout()"><i class="bi bi-box-arrow-left"></i> Logout</a>
     </nav>
@@ -35,7 +75,9 @@
           <div class="card-zenji p-4 text-white" style="background:linear-gradient(135deg,var(--dark-bg),var(--ocean-teal));">
             <div class="small opacity-75">Available balance</div>
             <h2 class="fw-bold mb-3" id="balance">—</h2>
-            <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#topupModal">Top up</button>
+            <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#topupModal">
+              <i class="bi bi-plus-lg me-1"></i> Top up
+            </button>
           </div>
         </div>
         <div class="col-md-7">
@@ -50,33 +92,98 @@
     </div>
   </div>
 
-  <!-- Topup Modal -->
-  <div class="modal fade" id="topupModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+  <div class="modal fade" id="topupModal" tabindex="-1" aria-labelledby="topupModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
       <div class="modal-content rounded-4">
-        <div class="modal-header border-0">
-          <h5 class="modal-title fw-bold">Top up wallet</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="modal-header border-0 px-4 pt-4">
+          <div>
+            <h5 class="modal-title fw-bold" id="topupModalTitle">Top up wallet</h5>
+            <div class="small text-muted">Mobile money, debit/credit card, or bank card</div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body px-4 pb-2">
+          <div class="topup-status" id="topupStatus" role="status"></div>
+
           <div class="mb-3">
-            <label class="form-label small fw-semibold">Amount (TZS)</label>
-            <input type="number" id="topupAmount" class="form-control" min="1000" step="500" value="10000">
+            <label class="form-label small fw-semibold" for="topupAmount">Amount (TZS)</label>
+            <input type="number" id="topupAmount" class="form-control form-control-lg" min="500" step="500" value="10000" inputmode="numeric">
+            <div class="form-text">Minimum 500 TZS</div>
           </div>
+
           <div class="mb-3">
-            <label class="form-label small fw-semibold">Mobile money phone</label>
-            <input type="tel" id="topupPhone" class="form-control" placeholder="255712345678" inputmode="tel">
-            <div class="form-text">You will receive a mobile money prompt on this number.</div>
+            <label class="form-label small fw-semibold d-block">Payment method</label>
+            <div class="topup-method-grid" role="group" aria-label="Top-up method">
+              <button type="button" class="topup-method-btn active" data-method="momo" id="btnMethodMomo">
+                <i class="bi bi-phone"></i> Mobile Money
+              </button>
+              <button type="button" class="topup-method-btn" data-method="card" id="btnMethodCard">
+                <i class="bi bi-credit-card-2-front"></i> Card
+              </button>
+              <button type="button" class="topup-method-btn" data-method="bank" id="btnMethodBank">
+                <i class="bi bi-bank"></i> Bank
+              </button>
+            </div>
+            <input type="hidden" id="topupMethod" value="momo">
           </div>
-          <div class="mb-3">
-            <label class="form-label small fw-semibold">Payment method</label>
-            <select id="topupMethod" class="form-select">
-              <option value="momo">Mobile Money</option>
-              <option value="card">Card</option>
-              <option value="bank">Bank</option>
-            </select>
+
+          <div id="momoFields">
+            <div class="mb-3">
+              <label class="form-label small fw-semibold" for="topupPhone">Mobile money phone</label>
+              <input type="tel" id="topupPhone" class="form-control" placeholder="07XX XXX XXX or 2557..." inputmode="tel" autocomplete="tel">
+              <div class="form-text">You will receive a USSD prompt on this number to enter your PIN.</div>
+            </div>
           </div>
-          <button class="btn btn-primary-zenji" id="btnTopup" onclick="doTopup()">Top up</button>
+
+          <div id="cardFields" class="d-none">
+            <div class="card-scene" aria-label="Live payment card preview">
+              <div class="bank-card" id="bankCard">
+                <div class="bank-card-face bank-card-front">
+                  <div class="card-brand-row"><span>ZENJIGO</span><span id="cardBrand">CARD</span></div>
+                  <div class="card-chip"></div>
+                  <div class="card-number" id="previewNumber">•••• •••• •••• ••••</div>
+                  <div class="card-bottom">
+                    <div>Card holder<strong id="previewName">YOUR NAME</strong></div>
+                    <div>Expires<strong id="previewExpiry">MM/YY</strong></div>
+                  </div>
+                </div>
+                <div class="bank-card-face bank-card-back">
+                  <div class="card-strip"></div>
+                  <div class="small mb-1">CVV</div>
+                  <div class="card-cvv" id="previewCvv">•••</div>
+                  <div class="card-back-caption">Authorized cardholder signature</div>
+                </div>
+              </div>
+            </div>
+            <div class="payment-form-grid">
+              <div class="span-2">
+                <label class="form-label small fw-semibold" for="cardNumber">Card number</label>
+                <input id="cardNumber" class="form-control" inputmode="numeric" autocomplete="cc-number" maxlength="23" placeholder="1234 5678 9012 3456">
+              </div>
+              <div class="span-2">
+                <label class="form-label small fw-semibold" for="cardName">Name on card</label>
+                <input id="cardName" class="form-control" autocomplete="cc-name" maxlength="80" placeholder="As shown on card">
+              </div>
+              <div>
+                <label class="form-label small fw-semibold" for="cardExpiry">Expiry date</label>
+                <input id="cardExpiry" class="form-control" inputmode="numeric" autocomplete="cc-exp" maxlength="5" placeholder="MM/YY">
+              </div>
+              <div>
+                <label class="form-label small fw-semibold" for="cardCvv">Security code (CVV)</label>
+                <input id="cardCvv" class="form-control" inputmode="numeric" autocomplete="cc-csc" maxlength="4" placeholder="3 or 4 digits">
+              </div>
+            </div>
+            <p class="form-note mt-3 mb-0">
+              <i class="bi bi-lock me-1"></i>
+              Live preview only. Full card details are entered securely on Snippe&rsquo;s hosted checkout after you continue — they are never stored by ZenjiGO.
+            </p>
+          </div>
+        </div>
+        <div class="modal-footer border-0 px-4 pb-4">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary-zenji px-4" id="btnTopup" onclick="doTopup()">
+            <i class="bi bi-shield-check me-2"></i><span id="btnTopupLabel">Top up</span>
+          </button>
         </div>
       </div>
     </div>
@@ -89,21 +196,89 @@
   <script>
     if (!requireAuth('rider')) throw new Error('auth');
 
+    const $ = (id) => document.getElementById(id);
+    const digits = (value) => String(value || '').replace(/\D/g, '');
+
+    function setStatus(message, type = 'info') {
+      const el = $('topupStatus');
+      if (!message) {
+        el.className = 'topup-status';
+        el.textContent = '';
+        return;
+      }
+      el.className = 'topup-status show ' + type;
+      el.textContent = message;
+    }
+
+    function setMethod(method) {
+      $('topupMethod').value = method;
+      document.querySelectorAll('.topup-method-btn').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.method === method);
+      });
+      const isCard = method === 'card' || method === 'bank';
+      $('momoFields').classList.toggle('d-none', isCard);
+      $('cardFields').classList.toggle('d-none', !isCard);
+      $('btnTopupLabel').textContent = isCard ? 'Continue to secure checkout' : 'Top up';
+      $('bankCard')?.classList.remove('flipped');
+      setStatus('');
+      if (isCard && method === 'bank') {
+        setStatus('Bank top-up uses a secure online card/bank checkout. Complete payment on the next screen.', 'info');
+      }
+    }
+
+    document.querySelectorAll('.topup-method-btn').forEach((btn) => {
+      btn.addEventListener('click', () => setMethod(btn.dataset.method));
+    });
+
+    function updateCard() {
+      const n = digits($('cardNumber').value).slice(0, 19);
+      $('cardNumber').value = n.replace(/(.{4})/g, '$1 ').trim();
+      const padded = n ? (n + '•'.repeat(Math.max(0, 16 - n.length))) : '';
+      $('previewNumber').textContent = n
+        ? padded.replace(/(.{4})/g, '$1 ').trim()
+        : '•••• •••• •••• ••••';
+      $('previewName').textContent = ($('cardName').value.trim().toUpperCase() || 'YOUR NAME');
+      const exp = $('cardExpiry').value.replace(/\D/g, '').slice(0, 4);
+      $('cardExpiry').value = exp.length > 2 ? exp.slice(0, 2) + '/' + exp.slice(2) : exp;
+      $('previewExpiry').textContent = $('cardExpiry').value || 'MM/YY';
+      $('previewCvv').textContent = $('cardCvv').value ? '•'.repeat($('cardCvv').value.length) : '•••';
+      $('cardBrand').textContent = /^4/.test(n)
+        ? 'VISA'
+        : /^(5[1-5]|2)/.test(n)
+          ? 'MASTERCARD'
+          : /^3/.test(n)
+            ? 'AMEX'
+            : 'CARD';
+    }
+
+    ['cardNumber', 'cardName', 'cardExpiry', 'cardCvv'].forEach((id) => {
+      $(id).addEventListener('input', updateCard);
+    });
+    $('cardCvv').addEventListener('focus', () => $('bankCard').classList.add('flipped'));
+    $('cardCvv').addEventListener('blur', () => $('bankCard').classList.remove('flipped'));
+
+    $('topupModal').addEventListener('hidden.bs.modal', () => {
+      $('bankCard').classList.remove('flipped');
+      setStatus('');
+    });
+
     async function load() {
       try {
         const bal = await Api.rider.walletBalance();
-        document.getElementById('balance').textContent = formatMoney(bal.balance ?? bal.amount ?? bal);
-      } catch { document.getElementById('balance').textContent = 'TZS 0'; }
+        $('balance').textContent = formatMoney(bal.balance ?? bal.amount ?? bal);
+      } catch {
+        $('balance').textContent = 'TZS 0';
+      }
 
       try {
         const tx = await Api.rider.walletTransactions();
         const list = Array.isArray(tx) ? tx : (tx.transactions || []);
-        const el = document.getElementById('txns');
+        const el = $('txns');
         if (!list.length) {
           el.innerHTML = '<div class="text-center py-4 text-muted small">No transactions yet.</div>';
           return;
         }
-        el.innerHTML = list.map(t => `
+        el.innerHTML = list.map((t) => `
           <div class="d-flex justify-content-between px-3 py-3 border-bottom">
             <div>
               <div class="fw-semibold small">${t.type || t.description || 'Transaction'}</div>
@@ -114,44 +289,127 @@
             </div>
           </div>`).join('');
       } catch (e) {
-        document.getElementById('txns').innerHTML = `<div class="text-center py-4 text-muted small">${e.message}</div>`;
+        $('txns').innerHTML = `<div class="text-center py-4 text-muted small">${e.message}</div>`;
       }
     }
 
-    async function doTopup() {
-      const amount = parseFloat(document.getElementById('topupAmount').value);
-      const method = document.getElementById('topupMethod').value;
-      const phone = (document.getElementById('topupPhone')?.value || '').trim();
-      if (!amount || amount < 1000) { showToast('Enter a valid amount', 'error'); return; }
-      if (!phone || phone.replace(/\D/g,'').length < 9) { showToast('Enter a valid mobile money phone (e.g. 255712345678)', 'error'); return; }
-      const btn = document.getElementById('btnTopup');
-      setLoading(btn, true);
-      try {
-        const res = await Api.rider.topUp(amount, method, phone);
-        const msg = (res && (res.message || res.status === 'success' ? 'Wallet will be credited after payment confirmation.' : null)) || 'Top-up initiated. Confirm on your phone.';
-        showToast(msg);
-        bootstrap.Modal.getInstance(document.getElementById('topupModal')).hide();
-        // Poll a few times in case webhook is fast
-        const paymentId = res && (res.paymentId || (res.data && res.data.paymentId));
-        if (paymentId && Api.rider.topUpStatus) {
-          let tries = 0;
-          const poll = setInterval(async () => {
-            tries++;
-            try {
-              const st = await Api.rider.topUpStatus(paymentId);
-              const status = st.status || st.data?.status;
-              if (status === 'success') { clearInterval(poll); showToast('Wallet credited'); load(); }
-              else if (status === 'failed' || tries >= 12) clearInterval(poll);
-            } catch (_) { if (tries >= 12) clearInterval(poll); }
-          }, 3000);
+    function startPolling(paymentId) {
+      if (!paymentId || !Api.rider.topUpStatus) return;
+      let tries = 0;
+      const poll = setInterval(async () => {
+        tries++;
+        try {
+          const st = await Api.rider.topUpStatus(paymentId);
+          const status = st.status || st.data?.status;
+          if (status === 'success') {
+            clearInterval(poll);
+            showToast('Wallet credited successfully');
+            setStatus('Payment confirmed — wallet updated.', 'success');
+            load();
+          } else if (status === 'failed') {
+            clearInterval(poll);
+            setStatus('Payment failed. Please try again.', 'error');
+          } else if (tries >= 20) {
+            clearInterval(poll);
+          }
+        } catch (_) {
+          if (tries >= 20) clearInterval(poll);
         }
+      }, 3000);
+    }
+
+    async function doTopup() {
+      const amount = parseFloat($('topupAmount').value);
+      const method = $('topupMethod').value;
+      const isCard = method === 'card' || method === 'bank';
+      const phone = ($('topupPhone')?.value || '').trim();
+      const btn = $('btnTopup');
+
+      if (!amount || amount < 500) {
+        setStatus('Enter a valid amount (minimum 500 TZS).', 'error');
+        return;
+      }
+
+      if (!isCard) {
+        if (!phone || digits(phone).length < 9) {
+          setStatus('Enter a valid mobile money phone (e.g. 0712 345 678).', 'error');
+          return;
+        }
+      } else {
+        const n = digits($('cardNumber').value);
+        const name = $('cardName').value.trim();
+        const exp = $('cardExpiry').value.trim();
+        const cvv = $('cardCvv').value.trim();
+        if (n.length < 13) {
+          setStatus('Enter a valid card number (13–19 digits).', 'error');
+          return;
+        }
+        if (name.length < 3) {
+          setStatus('Enter the name on the card.', 'error');
+          return;
+        }
+        if (!/^\\d{2}\\/\\d{2}$/.test(exp)) {
+          setStatus('Enter expiry as MM/YY.', 'error');
+          return;
+        }
+        if (cvv.length < 3) {
+          setStatus('Enter a valid CVV.', 'error');
+          return;
+        }
+      }
+
+      setLoading(btn, true);
+      setStatus(isCard ? 'Preparing secure checkout…' : 'Sending mobile money prompt…', 'info');
+
+      try {
+        const callbackUrl = window.location.origin + window.location.pathname + '?topup=1';
+        const res = await Api.rider.topUp(amount, method, isCard ? (phone || undefined) : phone, {
+          callbackUrl
+        });
+
+        const paymentId = res && (res.paymentId || res.data?.paymentId);
+        const paymentUrl = res && (res.paymentUrl || res.payment_url || res.data?.paymentUrl || res.data?.payment_url);
+
+        if (isCard && paymentUrl) {
+          setStatus('Redirecting to secure card checkout…', 'success');
+          if (paymentId) sessionStorage.setItem('zenjigo_pending_topup', String(paymentId));
+          window.location.href = paymentUrl;
+          return;
+        }
+
+        const msg = (res && res.message) || (isCard
+          ? 'Card payment initiated. Complete checkout to credit your wallet.'
+          : 'Top-up initiated. Confirm the USSD prompt on your phone.');
+        showToast(msg);
+        setStatus(msg, 'warning');
+        bootstrap.Modal.getInstance($('topupModal'))?.hide();
+        if (paymentId) startPolling(paymentId);
         load();
       } catch (e) {
+        setStatus(e.message || 'Top-up failed', 'error');
         showToast(e.message || 'Top-up failed', 'error');
       } finally {
         setLoading(btn, false);
       }
     }
+
+    (function handleReturn() {
+      try {
+        const q = new URLSearchParams(location.search);
+        if (q.get('topup') === '1') {
+          const pending = sessionStorage.getItem('zenjigo_pending_topup');
+          showToast('Checking payment status…');
+          if (pending) {
+            startPolling(pending);
+            sessionStorage.removeItem('zenjigo_pending_topup');
+          }
+          history.replaceState({}, '', location.pathname);
+        }
+      } catch (_) {}
+    })();
+
+    setMethod('momo');
+    updateCard();
     load();
   </script>
   <script src="../js/rider-ui.js"></script>
