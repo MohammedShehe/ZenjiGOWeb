@@ -69,6 +69,7 @@
     async function del(id) { if (!confirm('Remove this location from saved locations?')) return; try { await Api.rider.deleteSavedLocation(id); showToast('Location removed.'); load(); } catch (e) { showToast(e.message, 'error'); } }
     load();
   </script>
+  <script src="../js/i18n.js"></script>
   <script src="../js/rider-ui.js"></script>
   <script src="../js/map.js"></script>
   <script>

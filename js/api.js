@@ -176,6 +176,14 @@ const Api = (() => {
     sendEmailChangeOtp: (email) => data('POST', '/rider/email-change/send-otp', { body: { email: String(email).trim().toLowerCase() } }),
     verifyEmailChangeOtp: (email, code) => data('POST', '/rider/email-change/verify-otp', { body: { email: String(email).trim().toLowerCase(), code: String(code).trim() } }),
     updateMe: (body) => data('PATCH', '/rider/me', { body }),
+    /** Upload a profile image (same endpoint the app uses: POST /upload, field "file"). Returns the hosted URL. */
+    uploadPhoto: async (file) => {
+      const fd = new FormData(); fd.append('file', file);
+      const d = await data('POST', '/upload', { body: fd, isForm: true });
+      const url = d && (d.url || d.secure_url || d.path || (d.file && d.file.url));
+      if (!url) throw new Error('We could not upload your photo. Check your connection and try again.');
+      return url;
+    },
     savedLocations: () => data('GET', '/rider/saved-locations'),
     createSavedLocation: (body) => data('POST', '/rider/saved-locations', { body }),
     deleteSavedLocation: (id) => data('DELETE', `/rider/saved-locations/${id}`),

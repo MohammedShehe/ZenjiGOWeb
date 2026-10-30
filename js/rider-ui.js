@@ -51,6 +51,13 @@
     b.type = 'button'; b.className = 'zenji-theme-toggle'; b.innerHTML = '<i class="bi bi-moon-stars"></i><span class="theme-label">Dark mode</span>';
     b.addEventListener('click', () => setTheme(document.body.dataset.theme === 'dark' ? 'light' : 'dark'));
     host.appendChild(b);
+    if (window.zenjiLang && !host.querySelector('.zenji-lang-toggle')) {
+      const l = document.createElement('button');
+      l.type = 'button'; l.className = 'zenji-theme-toggle zenji-lang-toggle'; l.setAttribute('aria-label', 'Language');
+      l.title = 'English / Kiswahili'; l.textContent = zenjiLang.get() === 'sw' ? 'SW' : 'EN';
+      l.addEventListener('click', () => zenjiLang.set(zenjiLang.get() === 'sw' ? 'en' : 'sw'));
+      host.insertBefore(l, b);
+    }
   }
   function mobileNav() {
     const side = document.getElementById('appSidebar');

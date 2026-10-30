@@ -880,3 +880,6 @@ body[data-theme="dark"] .card small { color: #c4d2da; }
  bottom: 14px !important; top: auto !important; z-index: 1200 !important;
  border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.24);
 }
+
+/* Language switch (EN / SW) sits just above the floating theme toggle */
+.app-shell .zenji-lang-toggle { bottom: 64px !important; min-width: 46px; font-weight: 700; }
