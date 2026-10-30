@@ -173,6 +173,8 @@ const Api = (() => {
   /* ===================== RIDER ===================== */
   const rider = {
     me: () => data('GET', '/rider/me'),
+    sendEmailChangeOtp: (email) => data('POST', '/rider/email-change/send-otp', { body: { email: String(email).trim().toLowerCase() } }),
+    verifyEmailChangeOtp: (email, code) => data('POST', '/rider/email-change/verify-otp', { body: { email: String(email).trim().toLowerCase(), code: String(code).trim() } }),
     updateMe: (body) => data('PATCH', '/rider/me', { body }),
     savedLocations: () => data('GET', '/rider/saved-locations'),
     createSavedLocation: (body) => data('POST', '/rider/saved-locations', { body }),

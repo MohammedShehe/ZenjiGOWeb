@@ -11,6 +11,7 @@
     ['saved.html','bi-bookmark-heart','Saved places'],
     ['parcels.html','bi-box-seam','Parcels'],
     ['tours.html','bi-compass','Tours'],
+    ['promotions.html','bi-tag','Offers'],
     ['chat.html','bi-chat-dots','Messages'],
     ['profile.html','bi-person-circle','Profile']
   ];

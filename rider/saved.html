@@ -35,7 +35,7 @@
     <div class="modal-dialog modal-dialog-centered"><div class="modal-content rounded-4">
       <div class="modal-header border-0"><h5 class="modal-title fw-bold">Add saved place</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
-        <div class="mb-3"><label class="form-label small fw-semibold">Label</label><input id="label" class="form-control" placeholder="Home / Work"></div>
+        <div class="mb-3"><label class="form-label small fw-semibold">Label</label><select id="label" class="form-select"><option>Home</option><option>Work</option><option>Hotel</option><option>Other</option></select></div>
         <div class="mb-3"><label class="form-label small fw-semibold">Address</label><input id="address" class="form-control" placeholder="Search for a place" autocomplete="off"></div>
         <input type="hidden" id="lat"><input type="hidden" id="lng">
         <div class="form-text small mb-3">Start typing and pick your place from the suggestions.</div>
@@ -53,19 +53,20 @@
         const list = Array.isArray(data) ? data : [];
         const el = document.getElementById('list');
         if (!list.length) { el.innerHTML = '<div class="text-center py-4 text-muted">No saved places.</div>'; return; }
-        el.innerHTML = list.map(p => '<div class="d-flex justify-content-between align-items-center px-3 py-3 border-bottom"><div><div class="fw-semibold">' + (p.label || p.name || 'Place') + '</div><div class="small text-muted">' + (p.address || '') + '</div></div><button class="btn btn-sm btn-outline-danger" onclick="del(\'' + p.id + '\')">Delete</button></div>').join('');
-      } catch (e) { document.getElementById('list').innerHTML = '<div class="text-center py-4 text-danger">' + esc(e.message) + '</div>'; }
+        el.innerHTML = list.map(p => `<div class="d-flex justify-content-between align-items-center px-3 py-3 border-bottom"><div class="d-flex align-items-center gap-3"><span class="rounded-circle d-grid" style="width:40px;height:40px;place-items:center;background:rgba(11,153,146,.12);color:#0b9992"><i class="bi ${({home:'bi-house',work:'bi-briefcase',hotel:'bi-building'})[String(p.label||'').toLowerCase()]||'bi-geo-alt'}"></i></span><div><div class="fw-semibold">${esc(p.label || p.name || 'Place')}</div><div class="small text-muted">${esc(p.address || '')}</div></div></div><button class="btn btn-sm btn-outline-danger" data-id="${esc(p.id)}">Remove</button></div>`).join('');
+        el.querySelectorAll('button[data-id]').forEach(b => b.addEventListener('click', () => del(b.dataset.id)));
+            } catch (e) { document.getElementById('list').innerHTML = '<div class="text-center py-4 text-danger">' + esc(e.message) + '</div>'; }
     }
     async function addPlace() {
       try {
         const lat = parseFloat(document.getElementById('lat').value), lng = parseFloat(document.getElementById('lng').value);
         if (!document.getElementById('label').value.trim()) throw new Error('Give this place a name, e.g. Home or Work.');
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) throw new Error('Pick the place from the search suggestions.');
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) throw new Error('Select a place from the suggestions first.');
         await Api.rider.createSavedLocation({ label: document.getElementById('label').value, address: document.getElementById('address').value, lat, lng });
-        showToast('Saved'); bootstrap.Modal.getInstance(document.getElementById('addModal')).hide(); load();
+        showToast('Location saved.'); bootstrap.Modal.getInstance(document.getElementById('addModal')).hide(); load();
       } catch (e) { showToast(e.message, 'error'); }
     }
-    async function del(id) { if (!confirm('Delete?')) return; try { await Api.rider.deleteSavedLocation(id); load(); } catch (e) { showToast(e.message, 'error'); } }
+    async function del(id) { if (!confirm('Remove this location from saved locations?')) return; try { await Api.rider.deleteSavedLocation(id); showToast('Location removed.'); load(); } catch (e) { showToast(e.message, 'error'); } }
     load();
   </script>
   <script src="../js/rider-ui.js"></script>

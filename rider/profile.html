@@ -44,7 +44,20 @@
             </div>
             <div class="mb-3">
               <label class="form-label small fw-semibold">Email</label>
-              <input type="email" id="email" class="form-control">
+              <div class="input-group">
+                <input type="email" id="email" class="form-control" autocomplete="email">
+                <span class="input-group-text" id="emailState" title=""><i class="bi bi-patch-check-fill text-success"></i></span>
+              </div>
+              <div id="otpBox" class="d-none mt-2">
+                <div class="small text-muted mb-2">Changing your email? Verify the new address first.</div>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btnSendOtp" data-no-auto-loading="true">Send verification code</button>
+                <div id="otpEntry" class="d-none mt-2">
+                  <div class="input-group">
+                    <input id="emailOtp" class="form-control" inputmode="numeric" maxlength="8" placeholder="Email OTP" autocomplete="one-time-code">
+                    <button type="button" class="btn btn-primary-zenji" id="btnVerifyOtp" data-no-auto-loading="true">Verify email</button>
+                  </div>
+                </div>
+              </div>
             </div>
             <button class="btn btn-primary-zenji" id="btnSave" onclick="saveProfile()">Save changes</button>
           </div>
@@ -82,22 +95,56 @@
         document.getElementById('fullName').value = me.fullName || me.full_name || me.name || Api.getUser()?.fullName || Api.getUser()?.full_name || '';
         document.getElementById('phone').value = me.phone || Api.getUser()?.phone || '';
         document.getElementById('email').value = me.email || Api.getUser()?.email || '';
+        originalEmail = cleanMail(); refreshEmailUi();
         // Keep the cached profile in sync with the canonical /rider/me response.
         Api.setUser({ ...(Api.getUser() || {}), ...me, fullName: me.fullName || me.full_name || me.name || '' });
       } catch (e) {
         showToast(e.message, 'error');
       }
     })();
+    // ---- Email change needs an OTP, exactly like the app ----
+    let originalEmail = '', emailVerified = true, otpSent = false;
+    const $ = (id) => document.getElementById(id);
+    const cleanMail = () => $('email').value.trim().toLowerCase();
+    function refreshEmailUi() {
+      const changed = cleanMail() !== '' && cleanMail() !== originalEmail;
+      emailVerified = !changed;
+      $('otpBox').classList.toggle('d-none', !changed);
+      $('otpEntry').classList.toggle('d-none', !otpSent || !changed);
+      $('emailState').innerHTML = emailVerified ? '<i class="bi bi-patch-check-fill text-success"></i>' : '<i class="bi bi-envelope-exclamation text-warning"></i>';
+    }
+    $('email').addEventListener('input', () => { otpSent = false; refreshEmailUi(); });
+    $('btnSendOtp').addEventListener('click', async () => {
+      const mail = cleanMail();
+      if (!mail || !mail.includes('@')) return showToast('Enter a valid email', 'error');
+      const btn = $('btnSendOtp'); setLoading(btn, true);
+      try { await Api.rider.sendEmailChangeOtp(mail); otpSent = true; refreshEmailUi(); showToast('OTP sent to your email'); }
+      catch (e) { showToast(e.message, 'error'); } finally { setLoading(btn, false); }
+    });
+    $('btnVerifyOtp').addEventListener('click', async () => {
+      const code = $('emailOtp').value.trim();
+      if (!code) return showToast('Enter the code we emailed you', 'error');
+      const btn = $('btnVerifyOtp'); setLoading(btn, true);
+      try {
+        const me = await Api.rider.verifyEmailChangeOtp(cleanMail(), code);
+        originalEmail = cleanMail(); otpSent = false; $('emailOtp').value = '';
+        if (me && typeof me === 'object') Api.setUser({ ...(Api.getUser() || {}), ...me });
+        refreshEmailUi(); showToast('Email verified');
+      } catch (e) { showToast(e.message, 'error'); } finally { setLoading(btn, false); }
+    });
+
     async function saveProfile() {
-      const btn = document.getElementById('btnSave');
-      const fullName = document.getElementById('fullName').value.trim();
-      const email = document.getElementById('email').value.trim();
+      const btn = $('btnSave');
+      const fullName = $('fullName').value.trim();
       if (!fullName) { showToast('Please enter your full name', 'error'); return; }
+      if (cleanMail() !== '' && cleanMail() !== originalEmail && !emailVerified) { showToast('Verify the new email with OTP before saving.', 'error'); return; }
       setLoading(btn, true);
       try {
-        const updated = await Api.rider.updateMe({ fullName, email });
-        document.getElementById('fullName').value = updated.fullName || updated.full_name || fullName;
-        document.getElementById('email').value = updated.email || email;
+        // A changed email is applied by the verify endpoint, so only send it when unchanged (as the app does).
+        const body = { fullName };
+        if (cleanMail() && cleanMail() === originalEmail) body.email = cleanMail();
+        const updated = await Api.rider.updateMe(body);
+        $('fullName').value = updated.fullName || updated.full_name || fullName;
         Api.setUser({ ...(Api.getUser() || {}), ...updated, fullName: updated.fullName || updated.full_name || fullName });
         showToast('Profile updated');
       } catch (e) {

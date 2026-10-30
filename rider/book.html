@@ -180,10 +180,15 @@
         destinationAddress: document.getElementById('destAddress').value.trim(),
         paymentMethod: document.getElementById('paymentMethod').value
       };
+      // Promo validated on the Offers page is applied to this booking, like the app.
+      let promo = null;
+      try { promo = JSON.parse(sessionStorage.getItem('zenjigo_pending_promo') || 'null'); } catch (_) {}
+      if (promo && promo.code) body.promoCode = promo.code;
       const btn = document.getElementById('btnBook');
       setLoading(btn, true);
       try {
         const ride = await Api.rider.createRide(body);
+        try { sessionStorage.removeItem('zenjigo_pending_promo'); } catch (_) {}
         showToast('Ride requested!');
         const id = ride.id || ride.rideId;
         setTimeout(() => location.href = id ? `ride.html?id=${id}` : 'history.html', 800);
@@ -304,7 +309,7 @@
     if (!window.ZenjiMap) return;
     try {
       const defCenter = (ZENJIGO_CONFIG.MAP && ZENJIGO_CONFIG.MAP.DEFAULT_CENTER) || { lat: -6.1659, lng: 39.2026 };
-      window.__bookingMap = await ZenjiMap.createMap('bookingMap', {
+      try { window.__bookingMap = await ZenjiMap.createMap('bookingMap', {
         center: defCenter,
         zoom: 14,
         markers: [],
@@ -323,7 +328,11 @@
           fillAddress(kind, { lat, lng });
           if (kind === 'pickup') loadOnlineDrivers();
         }
-      });
+      }); } catch (mapErr) {
+        console.warn('Map unavailable, place search still works:', mapErr && mapErr.message);
+        const mb = $('bookingMap');
+        if (mb) mb.innerHTML = '<div class="p-4 text-center text-muted small">The map could not be loaded, but you can still search for places above.</div>';
+      }
 
       const country = (ZENJIGO_CONFIG.MAP && ZENJIGO_CONFIG.MAP.COUNTRY) || 'tz';
       $('pickupAddress').addEventListener('focus', () => { activeField = 'pickup'; });

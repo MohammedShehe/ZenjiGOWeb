@@ -64,7 +64,7 @@
     const st = document.createElement('style');
     st.id = 'zenji-ac-style';
     st.textContent =
-      '.zenji-ac{position:absolute;z-index:2000;background:#fff;border:1px solid #dfe3e8;border-radius:12px;' +
+      '.zenji-ac{position:fixed;z-index:2000;background:#fff;border:1px solid #dfe3e8;border-radius:12px;' +
       'box-shadow:0 10px 28px rgba(16,24,40,.16);max-height:300px;overflow:auto;margin-top:4px}' +
       '.zenji-ac-item{padding:10px 14px;cursor:pointer;font-size:14px;line-height:1.3;color:#101828;border-bottom:1px solid #f2f4f7}' +
       '.zenji-ac-item:last-child{border-bottom:0}.zenji-ac-item small{display:block;color:#667085;font-size:12px}' +
@@ -74,21 +74,30 @@
   }
 
   /**
-   * Places autocomplete on an input using Places API (New).
+   * Places autocomplete on an input.
+   * Primary source: Google Places API (New) in the browser.
+   * Fallback (automatic): the ZenjiGO backend proxy /driver/places/autocomplete + /details
+   * (the same endpoints the Flutter apps use), so suggestions still appear when the browser key
+   * is restricted, billing is off, or the Google script is blocked.
    * onPlace({ address, lat, lng, placeId, name })
    */
   async function attachAutocomplete(inputEl, onPlace, options = {}) {
-    await ensureGoogle();
     if (!inputEl) return null;
     injectStyles();
+    let useProxy = false;
+    try { await ensureGoogle(); } catch (e) { useProxy = true; console.warn('Using backend places proxy:', e && e.message ? e.message : e); }
     const country = (options.country || cfg().COUNTRY || 'tz').toLowerCase();
-    const { AutocompleteSuggestion, AutocompleteSessionToken } = google.maps.places;
+    let AutocompleteSuggestion = null, AutocompleteSessionToken = null;
+    if (!useProxy) {
+      try { ({ AutocompleteSuggestion, AutocompleteSessionToken } = google.maps.places); } catch (_) { useProxy = true; }
+      if (!AutocompleteSuggestion) useProxy = true;
+    }
 
     const box = document.createElement('div');
     box.className = 'zenji-ac d-none';
     document.body.appendChild(box);
-    let token = new AutocompleteSessionToken();
-    let items = [];
+    let token = (!useProxy && AutocompleteSessionToken) ? new AutocompleteSessionToken() : null;
+    let items = [];          // [{ main, secondary, full, placeId, _g }]
     let active = -1;
     let timer = null;
     let seq = 0;
@@ -96,8 +105,9 @@
 
     function place() {
       const r = inputEl.getBoundingClientRect();
-      box.style.left = r.left + global.scrollX + 'px';
-      box.style.top = r.bottom + global.scrollY + 'px';
+      box.style.position = 'fixed';
+      box.style.left = r.left + 'px';
+      box.style.top = r.bottom + 'px';
       box.style.width = r.width + 'px';
     }
     function hide() { box.classList.add('d-none'); active = -1; }
@@ -105,54 +115,104 @@
       box.innerHTML = '';
       if (!items.length) { hide(); return; }
       items.forEach((s, i) => {
-        const p = s.placePrediction;
         const d = document.createElement('div');
         d.className = 'zenji-ac-item' + (i === active ? ' active' : '');
-        const main = (p.mainText && p.mainText.text) || p.text.text;
-        const sub = p.secondaryText && p.secondaryText.text;
-        const b = document.createElement('div'); b.textContent = main; d.appendChild(b);
-        if (sub) { const sm = document.createElement('small'); sm.textContent = sub; d.appendChild(sm); }
+        const b = document.createElement('div'); b.textContent = s.main; d.appendChild(b);
+        if (s.secondary) { const sm = document.createElement('small'); sm.textContent = s.secondary; d.appendChild(sm); }
         d.addEventListener('mousedown', (e) => { e.preventDefault(); choose(i); });
+        d.addEventListener('touchstart', (e) => { e.preventDefault(); choose(i); }, { passive: false });
         box.appendChild(d);
       });
       place();
       box.classList.remove('d-none');
     }
+
+    /** Friendly label like the app: "Main, FirstSecondaryPart", never a Plus Code. */
+    function label(main, secondary, full) {
+      const isPlus = (t) => /^[A-Z0-9]{4,}\+[A-Z0-9]{2,}/.test(String(t || '').split(',')[0].trim());
+      const m = isPlus(main) ? '' : String(main || '').trim();
+      const sec = isPlus(secondary) ? '' : String(secondary || '').trim();
+      if (m && sec) {
+        const short = sec.split(',')[0].trim();
+        return short && !m.includes(short) ? m + ', ' + short : m;
+      }
+      return m || sec.split(',').slice(0, 2).join(', ') || String(full || '').split(',').slice(0, 2).join(',').trim();
+    }
+
+    async function proxySearch(q) {
+      const payload = await Api.driver.placesAutocomplete(q);
+      const list = (payload && (payload.predictions || payload.data && payload.data.predictions)) || [];
+      return list.filter((p) => p && p.placeId).slice(0, 6).map((p) => ({
+        main: (p.structured && p.structured.main) || p.description || '',
+        secondary: (p.structured && p.structured.secondary) || '',
+        full: p.description || '',
+        placeId: p.placeId
+      }));
+    }
+
     async function choose(i) {
       const s = items[i];
       if (!s) return;
       hide();
       try {
-        const pl = s.placePrediction.toPlace();
-        await pl.fetchFields({ fields: ['displayName', 'formattedAddress', 'location', 'id'] });
-        if (!pl.location) return;
-        // Keep the human-readable suggestion the user actually chose. formattedAddress can
-        // contain a Plus Code (e.g. 27PW...) instead of the place name they selected.
-        const selectedLabel = (s.placePrediction.text && s.placePrediction.text.text) ||
-          (s.placePrediction.mainText && s.placePrediction.mainText.text) || pl.displayName || pl.formattedAddress || '';
-        const address = selectedLabel;
+        let lat, lng, placeId = s.placeId;
+        if (s._g) {
+          const pl = s._g.placePrediction.toPlace();
+          await pl.fetchFields({ fields: ['displayName', 'formattedAddress', 'location', 'id'] });
+          if (!pl.location) return;
+          lat = pl.location.lat(); lng = pl.location.lng(); placeId = pl.id;
+        } else {
+          const d = await Api.driver.placeDetails(s.placeId);
+          lat = d && d.lat != null ? Number(d.lat) : null;
+          lng = d && d.lng != null ? Number(d.lng) : null;
+          if (lat == null || lng == null || isNaN(lat) || isNaN(lng)) throw new Error('Could not resolve this place. Please choose another suggestion.');
+        }
+        // Keep the human-readable label the user chose (formattedAddress may be a Plus Code).
+        const selectedLabel = label(s.main, s.secondary, s.full);
         suppress = true;
         inputEl.value = selectedLabel;
         suppress = false;
-        token = new AutocompleteSessionToken(); // a new billing session after a selection
-        onPlace({ address, lat: pl.location.lat(), lng: pl.location.lng(), placeId: pl.id, name: selectedLabel });
+        if (!useProxy && AutocompleteSessionToken) token = new AutocompleteSessionToken();
+        onPlace({ address: selectedLabel, lat, lng, placeId, name: selectedLabel });
       } catch (e) {
         console.warn('Place details failed:', e && e.message ? e.message : e);
+        if (typeof global.showToast === 'function') global.showToast((e && e.message) || 'Could not resolve this place.', 'error');
       }
     }
+
     async function search() {
       const q = inputEl.value.trim();
       if (q.length < 2) { items = []; hide(); return; }
       const my = ++seq;
+      if (!useProxy) {
+        try {
+          const req = { input: q, sessionToken: token, includedRegionCodes: [country] };
+          if (options.bounds) req.locationBias = options.bounds;
+          else if (cfg().DEFAULT_CENTER) req.locationBias = { center: cfg().DEFAULT_CENTER, radius: 50000 };
+          const res = await AutocompleteSuggestion.fetchAutocompleteSuggestions(req);
+          if (my !== seq) return;
+          items = (res.suggestions || []).filter((s) => s.placePrediction).slice(0, 6).map((s) => {
+            const p = s.placePrediction;
+            return {
+              main: (p.mainText && p.mainText.text) || (p.text && p.text.text) || '',
+              secondary: (p.secondaryText && p.secondaryText.text) || '',
+              full: (p.text && p.text.text) || '',
+              placeId: p.placeId,
+              _g: s
+            };
+          });
+          active = -1;
+          render();
+          return;
+        } catch (e) {
+          console.warn('Google autocomplete failed, switching to backend proxy:', e && e.message ? e.message : e);
+          useProxy = true; // permanent for this input: the browser key/API is not usable
+        }
+      }
       try {
-        const req = { input: q, sessionToken: token, includedRegionCodes: [country] };
-        if (options.bounds) req.locationBias = options.bounds;
-        else if (cfg().DEFAULT_CENTER) req.locationBias = { center: cfg().DEFAULT_CENTER, radius: 50000 };
-        const res = await AutocompleteSuggestion.fetchAutocompleteSuggestions(req);
+        const list = await proxySearch(q);
         if (my !== seq) return;
-        items = (res.suggestions || []).filter((s) => s.placePrediction).slice(0, 6);
-        active = -1;
-        render();
+        items = list; active = -1; render();
       } catch (e) {
         console.warn('Autocomplete failed:', e && e.message ? e.message : e);
         items = []; hide();
@@ -163,7 +223,7 @@
     inputEl.addEventListener('input', () => {
       if (suppress) return;
       clearTimeout(timer);
-      timer = setTimeout(search, 220);
+      timer = setTimeout(search, 250);
       if (typeof options.onType === 'function') options.onType(inputEl.value);
     });
     inputEl.addEventListener('keydown', (e) => {
@@ -173,16 +233,17 @@
       else if (e.key === 'Enter' && active >= 0) { e.preventDefault(); choose(active); }
       else if (e.key === 'Escape') hide();
     });
-    inputEl.addEventListener('blur', () => setTimeout(hide, 150));
+    inputEl.addEventListener('blur', () => setTimeout(hide, 200));
     global.addEventListener('resize', place);
+    global.addEventListener('scroll', () => { if (!box.classList.contains('d-none')) place(); }, true);
     return { destroy() { box.remove(); } };
   }
 
   // ---------------------------------------------------------------- Geocoding
   /** lat/lng → readable address (or null). */
   async function reverseGeocode(lat, lng) {
-    await ensureGoogle();
     try {
+      await ensureGoogle();
       const geocoder = new google.maps.Geocoder();
       const res = await geocoder.geocode({ location: { lat: Number(lat), lng: Number(lng) } });
       const r = res && res.results && res.results[0];

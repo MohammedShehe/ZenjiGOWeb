@@ -52,6 +52,7 @@
             <button class="btn btn-primary-zenji w-100" id="payBtn" onclick="payNow()">Pay now</button>
             <p class="small text-muted mt-2 mb-0" id="payHint"></p>
           </div>
+          <div class="card-zenji p-4 mb-3 d-none" id="receiptBox"></div>
           <div class="card-zenji p-4 mb-3 d-none" id="actionsBox"><div class="d-grid gap-2" id="actions"></div></div>
           <div class="card-zenji p-4 d-none" id="rateBox">
             <h6 class="fw-bold mb-2">Trip complete — rate your driver</h6>
@@ -153,6 +154,30 @@
       const needsPay = st === 'started' && r.reached_destination && r.payment_status !== 'paid';
       $('payBox').classList.toggle('d-none', !needsPay);
       if (needsPay) renderPay();
+
+      // Trip receipt (same rows as the app's receipt screen)
+      const rb = $('receiptBox');
+      rb.classList.toggle('d-none', st !== 'completed');
+      if (st === 'completed') {
+        const num2 = (v) => { const n = Number(v); return isNaN(n) ? 0 : n; };
+        const base = num2(r.final_fare != null ? r.final_fare : r.estimated_fare);
+        const disc = num2(r.discount), tipAmt = num2(r.tip);
+        const total = r.total_paid != null && num2(r.total_paid) > 0 ? num2(r.total_paid) : Math.max(0, base - disc + tipAmt);
+        const row = (l, v, cls) => '<div class="d-flex justify-content-between py-1' + (cls ? ' ' + cls : '') + '"><span class="text-muted">' + l + '</span><span class="text-end ms-3">' + v + '</span></div>';
+        const stars = num2(r.rating || r.rider_rating);
+        rb.innerHTML = '<div class="text-center mb-3"><i class="bi bi-check-circle-fill text-success" style="font-size:2.6rem"></i>' +
+          '<div class="fw-bold fs-5">Trip completed</div>' +
+          (stars ? '<div class="text-warning">' + '★'.repeat(stars) + '☆'.repeat(Math.max(0, 5 - stars)) + '</div>' : '') + '</div>' +
+          row('From', esc(r.pickup_address || '—')) + row('To', esc(r.destination_address || '—')) +
+          row('Ride type', esc(String(r.ride_type || '').toUpperCase())) +
+          (r.driver ? row('Driver', esc(r.driver.fullName || r.driver.name || 'Driver')) : '') +
+          row('Payment', esc(String(r.payment_method || 'cash').toUpperCase())) + '<hr class="my-2">' +
+          row('Fare', formatMoney(base)) +
+          (disc > 0 ? row('Promo discount', '- ' + formatMoney(disc), 'text-success') : '') +
+          (tipAmt > 0 ? row('Tip', formatMoney(tipAmt)) : '') +
+          row('<strong>Total</strong>', '<strong>' + formatMoney(total) + '</strong>') +
+          (r.feedback ? '<div class="mt-3 small"><div class="fw-semibold">Your feedback</div>' + esc(r.feedback) + '</div>' : '');
+      }
 
       // Cancel
       const canCancel = ['searching','accepted','arriving','arrived'].includes(st);

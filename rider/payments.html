@@ -168,7 +168,7 @@
         const [mm,yy] = expiry.split('/').map(Number), now = new Date(), year = 2000 + yy;
         if (year < now.getFullYear() || (year === now.getFullYear() && mm < now.getMonth()+1)) return error('This card appears to be expired.');
         if (cvv.length < 3 || cvv.length > 4) return error('Enter a valid 3–4 digit security code.');
-        body = {type:'card',label:name,provider:$('cardBrand').textContent,account:'',last4:number.slice(-4),expiry};
+        body = {type:'card',label:name,provider:$('cardBrand').textContent,cardBrand:$('cardBrand').textContent,cardHolder:name,account:'',last4:number.slice(-4),cardLast4:number.slice(-4),expiry};
         // Never transmit or persist full card number or CVV from this page.
       } else if (type === 'momo') {
         const provider = $('pmProvider').value, phone = $('pmPhone').value.trim();

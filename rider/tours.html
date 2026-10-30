@@ -1,23 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tours – ZenjiGO</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tour Packages – ZenjiGO</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="../css/style.css" rel="stylesheet">
+  <style>
+    .tour-card{height:100%;border:1px solid var(--ui-border,#e5e7eb);background:var(--ui-surface,#fff);border-radius:18px;overflow:hidden;display:flex;flex-direction:column;transition:box-shadow .18s,transform .18s;cursor:pointer;text-align:left;width:100%;padding:0;color:inherit}
+    .tour-card:hover{box-shadow:0 12px 30px rgba(20,43,61,.12);transform:translateY(-2px)}
+    .tour-card .ph{height:130px;background:linear-gradient(135deg,#0b2a3c,#0a8f93);display:grid;place-items:center;color:#fff;font-size:2.4rem;background-size:cover;background-position:center}
+    .tour-card .bd{padding:16px 18px;display:flex;flex-direction:column;gap:6px;flex:1}
+    .tour-card .price{font-weight:800;color:#0b766e}
+    .booking-item{padding:14px 18px;border-bottom:1px solid var(--ui-border,#e5e7eb)}
+    .booking-item:last-child{border-bottom:0}
+    .stepper{display:flex;align-items:center;gap:12px}
+    .stepper button{width:38px;height:38px;border-radius:50%;border:1px solid var(--ui-border,#cbd5e1);background:var(--ui-surface,#fff);font-size:1.2rem;line-height:1;color:inherit}
+    .stepper button:disabled{opacity:.4}
+    .loc-ok{color:#16a34a;font-size:.78rem;margin-top:4px;display:none}.loc-ok.show{display:block}
+  </style>
 </head>
 <body class="app-shell">
   <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
   <aside class="app-sidebar" id="appSidebar">
     <div class="brand">Zenji<span>GO</span></div>
-    <nav class="mt-2">
-      <a href="dashboard.html" class="nav-link"><i class="bi bi-house"></i> Home</a>
-      <a href="tours.html" class="nav-link active"><i class="bi bi-compass"></i> Tours</a>
-      <a href="profile.html" class="nav-link"><i class="bi bi-person"></i> Profile</a>
-      <a href="#" class="nav-link" onclick="logout()"><i class="bi bi-box-arrow-left"></i> Logout</a>
-    </nav>
+    <nav class="mt-2"></nav>
   </aside>
   <div class="app-main">
     <div class="app-topbar">
@@ -25,41 +34,206 @@
         <button class="btn btn-link d-lg-none p-0" onclick="toggleSidebar()"><i class="bi bi-list fs-3"></i></button>
         <h5 class="mb-0 fw-bold">Tour Packages</h5>
       </div>
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-outline-secondary btn-sm" type="button" id="btnRefresh" title="Refresh"><i class="bi bi-arrow-clockwise"></i></button>
+      </div>
     </div>
     <div class="app-content">
+      <h5 class="fw-bold mb-3">Available packages</h5>
       <div class="row g-4" id="packages"><div class="col-12 text-center py-4"><div class="spinner-zenji mx-auto"></div></div></div>
-      <h5 class="fw-bold mt-4 mb-3">My bookings</h5>
-      <div class="card-zenji"><div class="card-body p-0" id="bookings"><div class="text-center py-3 text-muted small">Loading...</div></div></div>
+
+      <h5 class="fw-bold mt-5 mb-3">My tour bookings</h5>
+      <div class="card-zenji"><div class="card-body p-0" id="bookings"><div class="text-center py-3 text-muted small">Loading…</div></div></div>
     </div>
   </div>
+
+  <!-- Booking dialog (mirrors the app's bottom sheet) -->
+  <div class="modal fade" id="bookModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content rounded-4">
+        <div class="modal-header border-0 px-4 pt-4">
+          <div>
+            <h5 class="modal-title fw-bold" id="bkName">Book tour</h5>
+            <div class="small text-muted" id="bkDesc"></div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body px-4 pb-2">
+          <div class="alert alert-danger py-2 small d-none" id="bkError"></div>
+
+          <label class="fw-semibold mb-2" for="bkPickup">Pickup location</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-geo-alt"></i></span>
+            <input id="bkPickup" class="form-control" placeholder="Where should we pick you up?" autocomplete="off">
+          </div>
+          <div class="loc-ok" id="bkPickupOk"><i class="bi bi-check-circle-fill me-1"></i>Pickup location set</div>
+
+          <div class="row g-3 mt-1">
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold" for="bkDate"><i class="bi bi-calendar3 me-1"></i>Tour date</label>
+              <input type="date" id="bkDate" class="form-control">
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label fw-semibold" for="bkTime"><i class="bi bi-clock me-1"></i>Time</label>
+              <input type="time" id="bkTime" class="form-control" value="09:00">
+            </div>
+          </div>
+          <div class="small text-muted mt-1">Times are in East Africa Time (EAT).</div>
+
+          <div class="d-flex align-items-center mt-3">
+            <span class="fw-semibold">Tourists</span>
+            <div class="stepper ms-auto">
+              <button type="button" id="bkMinus" aria-label="Fewer tourists">&minus;</button>
+              <strong id="bkCount">1 / 4</strong>
+              <button type="button" id="bkPlus" aria-label="More tourists">+</button>
+            </div>
+          </div>
+          <div class="fs-5 fw-bold mt-3 mb-2">Total: <span id="bkTotal">—</span></div>
+        </div>
+        <div class="modal-footer border-0 px-4 pb-4">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary-zenji px-4" id="bkConfirm" data-no-auto-loading="true">Confirm booking</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="../js/config.js"></script><script src="../js/api.js"></script><script src="../js/utils.js"></script>
+  <script src="../js/map.js"></script>
   <script>
     if (!requireAuth('rider')) throw new Error('auth');
+    const $ = (id) => document.getElementById(id);
+
+    let packages = [];
+    let current = null;                 // package being booked
+    let state = { tourists: 1, max: 4, price: 0, pickup: null };
+
+    const firstOf = (o, keys, fb) => { for (const k of keys) if (o && o[k] != null && String(o[k]).trim() !== '') return o[k]; return fb; };
+    const pkgName = (p) => String(firstOf(p, ['name', 'title', 'packageName'], 'Tour'));
+    const pkgPrice = (p) => { const n = Number(firstOf(p, ['base_price', 'price', 'fare', 'amount'], NaN)); return isNaN(n) ? null : n; };
+
+    /* ---------- list ---------- */
     async function load() {
+      const pk = $('packages');
+      pk.innerHTML = '<div class="col-12 text-center py-4"><div class="spinner-zenji mx-auto"></div></div>';
       try {
-        const pkgs = await Api.rider.tourPackages();
-        const list = Array.isArray(pkgs) ? pkgs : [];
-        const el = document.getElementById('packages');
-        if (!list.length) { el.innerHTML = '<div class="col-12 text-muted">No packages available right now.</div>'; }
-        else {
-          el.innerHTML = list.map(p => '<div class="col-md-4"><div class="feature-card"><h6 class="fw-bold">' + (p.name||p.title||'Tour') + '</h6><p class="small text-muted">' + (p.description||'') + '</p><div class="fw-semibold text-teal mb-2">' + formatMoney(p.price||p.fare) + '</div><button class="btn btn-aqua btn-sm" onclick="book(\'' + p.id + '\')">Book</button></div></div>').join('');
-        }
-      } catch (e) { document.getElementById('packages').innerHTML = '<div class="col-12 text-danger">' + esc(e.message) + '</div>'; }
-      try {
-        const tours = await Api.rider.tours();
-        const list = Array.isArray(tours) ? tours : [];
-        document.getElementById('bookings').innerHTML = list.length ? list.map(t => '<div class="px-3 py-3 border-bottom"><div class="fw-semibold">' + (t.packageName||t.name||'Tour') + '</div><div class="small text-muted">' + (t.status||'') + ' · ' + formatDate(t.createdAt||t.date) + '</div></div>').join('') : '<div class="text-center py-3 text-muted small">No bookings yet.</div>';
-      } catch (e) { document.getElementById('bookings').innerHTML = '<div class="p-3 text-danger small">' + esc(e.message) + '</div>'; }
+        const [pr, br] = await Promise.allSettled([Api.rider.tourPackages(), Api.rider.tours()]);
+        if (pr.status === 'rejected') throw pr.reason;
+        packages = pickList(pr.value, ['packages', 'tours', 'items']);
+        if (!packages.length) pk.innerHTML = '<div class="col-12 text-muted">No tour packages are currently available.</div>';
+        else pk.innerHTML = packages.map((p, i) => {
+          const price = pkgPrice(p), img = p.image_url || p.imageUrl;
+          const dur = Number(p.duration_hours || p.durationHours);
+          return `<div class="col-md-6 col-xl-4"><button type="button" class="tour-card" data-i="${i}">
+            <div class="ph"${img ? ` style="background-image:linear-gradient(rgba(0,0,0,.15),rgba(0,0,0,.15)),url('${esc(encodeURI(String(img)).replace(/'/g, '%27'))}')"` : ''}>${img ? '' : '<i class="bi bi-compass"></i>'}</div>
+            <div class="bd">
+              <div class="fw-bold">${esc(pkgName(p))}</div>
+              <div class="small text-muted">${esc(firstOf(p, ['description'], ''))}</div>
+              <div class="mt-auto pt-2 d-flex justify-content-between align-items-center">
+                <span class="price">${price != null ? esc(formatMoney(price)) : ''}</span>
+                <span class="small text-muted">${dur ? '<i class="bi bi-clock me-1"></i>' + dur + ' h · ' : ''}up to ${esc(firstOf(p, ['max_tourists', 'maxTourists'], 4))} guests</span>
+              </div>
+            </div></button></div>`;
+        }).join('');
+        pk.querySelectorAll('.tour-card').forEach((b) => b.addEventListener('click', () => openBooking(packages[Number(b.dataset.i)])));
+        renderBookings(br);
+      } catch (e) {
+        pk.innerHTML = `<div class="col-12 text-center py-3"><i class="bi bi-cloud-slash fs-1 text-muted"></i><div class="my-2">${esc(e.message)}</div><button class="btn btn-primary-zenji" data-no-auto-loading="true" onclick="load()">Retry</button></div>`;
+        $('bookings').innerHTML = '';
+      }
     }
-    async function book(packageId) {
-      try {
-        await Api.rider.bookTour({ packageId });
-        showToast('Tour booked!');
-        load();
-      } catch (e) { showToast(e.message, 'error'); }
+
+    function renderBookings(settled) {
+      const el = $('bookings');
+      if (!settled || settled.status === 'rejected') {
+        el.innerHTML = '<div class="p-3 text-danger small">' + esc((settled && settled.reason && settled.reason.message) || 'Could not load your bookings.') + '</div>';
+        return;
+      }
+      const list = pickList(settled.value, ['tours', 'items', 'bookings']);
+      if (!list.length) { el.innerHTML = '<div class="text-center py-3 text-muted small">No bookings yet.</div>'; return; }
+      el.innerHTML = list.map((b) => {
+        const total = Number(firstOf(b, ['total_amount', 'totalAmount'], NaN));
+        return `<div class="booking-item">
+          <div class="d-flex justify-content-between align-items-start gap-2">
+            <div class="fw-semibold"><i class="bi bi-calendar-check me-2 text-teal"></i>${esc(firstOf(b, ['package_name', 'name', 'booking_code'], 'Tour'))}</div>${statusBadge(b.status)}
+          </div>
+          <div class="small mt-1">When: ${esc(formatEat(firstOf(b, ['pickup_at', 'pickupAt'], '')))}</div>
+          <div class="small text-muted">Pickup: ${esc(firstOf(b, ['pickup_location', 'pickupLocation'], '—'))}</div>
+          <div class="small text-muted">${b.booking_code ? esc(b.booking_code) + ' · ' : ''}${esc(formatMoney(isNaN(total) ? null : total))}${b.tourists ? ' · ' + esc(b.tourists) + ' guest' + (Number(b.tourists) > 1 ? 's' : '') : ''}</div>
+        </div>`;
+      }).join('');
     }
-    load();
+
+    /* ---------- booking dialog ---------- */
+    function renderCounter() {
+      $('bkCount').textContent = state.tourists + ' / ' + state.max;
+      $('bkMinus').disabled = state.tourists <= 1;
+      $('bkPlus').disabled = state.tourists >= state.max;
+      $('bkTotal').textContent = formatMoney(state.price * state.tourists);
+    }
+    function showErr(m) { const e = $('bkError'); e.textContent = m || ''; e.classList.toggle('d-none', !m); }
+
+    function openBooking(p) {
+      const id = String(firstOf(p, ['id', '_id', 'packageId'], ''));
+      if (!id) return showToast('This tour package has no booking ID from the server.', 'error');
+      current = p;
+      state = { tourists: 1, max: Number(firstOf(p, ['max_tourists', 'maxTourists'], 4)) || 4, price: pkgPrice(p) || 0, pickup: null };
+      $('bkName').textContent = pkgName(p);
+      $('bkDesc').textContent = String(firstOf(p, ['description'], ''));
+      $('bkPickup').value = '';
+      $('bkPickupOk').classList.remove('show');
+      $('bkDate').min = eatDateString(0);
+      $('bkDate').max = eatDateString(180);
+      $('bkDate').value = eatDateString(1);
+      $('bkTime').value = '09:00';
+      showErr('');
+      renderCounter();
+      bootstrap.Modal.getOrCreateInstance($('bookModal')).show();
+    }
+    $('bkMinus').addEventListener('click', () => { if (state.tourists > 1) { state.tourists--; renderCounter(); } });
+    $('bkPlus').addEventListener('click', () => { if (state.tourists < state.max) { state.tourists++; renderCounter(); } });
+
+    async function confirmBooking() {
+      showErr('');
+      const date = $('bkDate').value, time = $('bkTime').value, text = $('bkPickup').value.trim();
+      if (!text || !state.pickup || !date || !time) return showErr('Select pickup from suggestions, date and time.');
+      const pickupAt = eatToUtcString(date, time);
+      if (new Date(pickupAt.replace(' ', 'T') + 'Z').getTime() < Date.now() - 60000) return showErr('The tour must start in the future.');
+      const id = String(firstOf(current, ['id', '_id', 'packageId'], ''));
+      const btn = $('bkConfirm');
+      setLoading(btn, true);
+      try {
+        // Same payload the mobile app sends to POST /rider/tours.
+        await Api.rider.bookTour({
+          packageId: id,
+          tourPackageId: id,
+          tourists: state.tourists,
+          pickupLocation: text,
+          pickupLat: state.pickup.lat,
+          pickupLng: state.pickup.lng,
+          pickupAt
+        });
+        bootstrap.Modal.getOrCreateInstance($('bookModal')).hide();
+        showToast('Tour booked. Drivers can accept this job with the scheduled date/time.');
+        try { renderBookings({ status: 'fulfilled', value: await Api.rider.tours() }); } catch (_) { load(); }
+      } catch (e) {
+        showErr(e.message || 'Could not book this tour.');
+      } finally { setLoading(btn, false); }
+    }
+    $('bkConfirm').addEventListener('click', confirmBooking);
+    $('btnRefresh').addEventListener('click', load);
+
+    (async function init() {
+      load();
+      try {
+        const country = (ZENJIGO_CONFIG.MAP && ZENJIGO_CONFIG.MAP.COUNTRY) || 'tz';
+        await ZenjiMap.attachAutocomplete($('bkPickup'), (p) => {
+          state.pickup = { lat: Number(p.lat), lng: Number(p.lng) };
+          $('bkPickupOk').classList.add('show');
+        }, { country, onType: () => { state.pickup = null; $('bkPickupOk').classList.remove('show'); } });
+      } catch (e) { console.warn('Autocomplete unavailable:', e && e.message); }
+    })();
   </script>
   <script src="../js/rider-ui.js"></script>
 </body>

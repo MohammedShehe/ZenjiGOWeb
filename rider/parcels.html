@@ -1,68 +1,258 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Parcels – ZenjiGO</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
   <link href="../css/style.css" rel="stylesheet">
+  <style>
+    .field-hint{font-size:.78rem;color:var(--ui-muted,#6b7280);margin-top:4px}
+    .loc-ok{color:#16a34a;font-size:.78rem;margin-top:4px;display:none}
+    .loc-ok.show{display:block}
+    .parcel-item{padding:14px 18px;border-bottom:1px solid var(--ui-border,#e5e7eb)}
+    .parcel-item:last-child{border-bottom:0}
+    .success-ring{width:120px;height:120px;border-radius:50%;background:rgba(34,197,94,.12);display:grid;place-items:center;margin:0 auto 20px}
+  </style>
 </head>
 <body class="app-shell">
   <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
   <aside class="app-sidebar" id="appSidebar">
     <div class="brand">Zenji<span>GO</span></div>
-    <nav class="mt-2">
-      <a href="dashboard.html" class="nav-link"><i class="bi bi-house"></i> Home</a>
-      <a href="parcels.html" class="nav-link active"><i class="bi bi-box-seam"></i> Parcels</a>
-      <a href="profile.html" class="nav-link"><i class="bi bi-person"></i> Profile</a>
-      <a href="#" class="nav-link" onclick="logout()"><i class="bi bi-box-arrow-left"></i> Logout</a>
-    </nav>
+    <nav class="mt-2"></nav>
   </aside>
   <div class="app-main">
     <div class="app-topbar">
       <div class="d-flex align-items-center gap-2">
         <button class="btn btn-link d-lg-none p-0" onclick="toggleSidebar()"><i class="bi bi-list fs-3"></i></button>
-        <h5 class="mb-0 fw-bold">Parcels</h5>
+        <h5 class="mb-0 fw-bold" id="pageTitle">Send a Parcel</h5>
       </div>
-      <button class="btn btn-aqua btn-sm" data-bs-toggle="modal" data-bs-target="#addModal">Send parcel</button>
+      <div class="d-flex align-items-center gap-2"></div>
     </div>
     <div class="app-content">
-      <div class="card-zenji"><div class="card-body p-0" id="list"><div class="text-center py-4"><div class="spinner-zenji mx-auto"></div></div></div></div>
+      <div class="row g-4">
+        <div class="col-lg-7">
+          <!-- Booking form -->
+          <div class="card-zenji" id="formCard">
+            <div class="card-body p-4">
+              <label class="fw-bold mb-2" for="pickup">Pickup location</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-geo-alt"></i></span>
+                <input id="pickup" class="form-control" placeholder="Search pickup in Tanzania…" autocomplete="off">
+                <button class="btn btn-outline-secondary" type="button" id="btnHere" title="Use current location" data-no-auto-loading="true"><i class="bi bi-crosshair"></i></button>
+              </div>
+              <div class="loc-ok" id="pickupOk"><i class="bi bi-check-circle-fill me-1"></i>Pickup location set</div>
+
+              <label class="fw-bold mt-3 mb-2" for="dropoff">Delivery location</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-flag"></i></span>
+                <input id="dropoff" class="form-control" placeholder="Search delivery in Tanzania…" autocomplete="off">
+              </div>
+              <div class="loc-ok" id="dropoffOk"><i class="bi bi-check-circle-fill me-1"></i>Delivery location set</div>
+              <div class="field-hint">Type at least 2 letters and choose a place from the suggestions.</div>
+
+              <div class="mt-3">
+                <label class="form-label fw-semibold" for="desc">What are you sending?</label>
+                <textarea id="desc" class="form-control" rows="2" maxlength="450"></textarea>
+              </div>
+              <div class="row g-3 mt-0">
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold" for="receiverName">Receiver name (optional)</label>
+                  <input id="receiverName" class="form-control" maxlength="80" autocomplete="off">
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold" for="receiverPhone">Receiver phone</label>
+                  <input id="receiverPhone" class="form-control" type="tel" inputmode="tel" autocomplete="off">
+                </div>
+              </div>
+
+              <div class="mt-3">
+                <label class="form-label fw-semibold" for="weight">Weight: <span id="weightLabel">1.0 kg</span></label>
+                <input type="range" class="form-range" id="weight" min="0.5" max="30" step="0.5" value="1">
+              </div>
+
+              <div class="row g-3">
+                <div class="col-sm-6">
+                  <label class="form-label fw-semibold" for="pickDate"><i class="bi bi-calendar3 me-1"></i>Pickup date</label>
+                  <input type="date" id="pickDate" class="form-control">
+                </div>
+                <div class="col-sm-6">
+                  <label class="form-label fw-semibold" for="pickTime"><i class="bi bi-clock me-1"></i>Pickup time</label>
+                  <input type="time" id="pickTime" class="form-control">
+                </div>
+              </div>
+              <div class="field-hint">Times are in East Africa Time (EAT).</div>
+
+              <div class="alert alert-danger py-2 small mt-3 d-none" id="formError"></div>
+              <button class="btn btn-primary-zenji w-100 mt-4 py-2" id="btnBook" type="button" data-no-auto-loading="true">Book parcel</button>
+            </div>
+          </div>
+
+          <!-- Success screen -->
+          <div class="card-zenji d-none" id="successCard">
+            <div class="card-body p-5 text-center">
+              <div class="success-ring"><i class="bi bi-check-circle-fill text-success" style="font-size:4rem"></i></div>
+              <h4 class="fw-bold">Parcel booked successfully</h4>
+              <p class="text-muted mt-3 mb-4" style="line-height:1.6">
+                Reference: <strong id="okCode">—</strong><br>
+                Scheduled: <span id="okWhen">—</span><br><br>
+                Online drivers can accept this delivery.
+              </p>
+              <button class="btn btn-primary-zenji w-100 py-2 mb-2" type="button" id="btnAnother">Book another parcel</button>
+              <a class="btn btn-outline-secondary w-100 py-2" href="dashboard.html">Back to home</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-5">
+          <div class="card-zenji">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span>My parcels</span>
+              <button class="btn btn-sm btn-outline-secondary" type="button" onclick="loadParcels()" title="Refresh"><i class="bi bi-arrow-clockwise"></i></button>
+            </div>
+            <div class="card-body p-0" id="list"><div class="text-center py-4"><div class="spinner-zenji mx-auto"></div></div></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
-  <div class="modal fade" id="addModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered"><div class="modal-content rounded-4">
-      <div class="modal-header border-0"><h5 class="modal-title fw-bold">Send a parcel</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
-      <div class="modal-body">
-        <div class="mb-2"><label class="form-label small fw-semibold">Pickup address</label><input id="pickup" class="form-control"></div>
-        <div class="mb-2"><label class="form-label small fw-semibold">Drop-off address</label><input id="dropoff" class="form-control"></div>
-        <div class="mb-2"><label class="form-label small fw-semibold">Description</label><input id="desc" class="form-control" placeholder="What are you sending?"></div>
-        <div class="mb-3"><label class="form-label small fw-semibold">Recipient phone</label><input id="recipient" class="form-control"></div>
-        <button class="btn btn-primary-zenji" onclick="createParcel()">Submit</button>
-      </div>
-    </div></div>
-  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="../js/config.js"></script><script src="../js/api.js"></script><script src="../js/utils.js"></script>
+  <script src="../js/map.js"></script>
   <script>
     if (!requireAuth('rider')) throw new Error('auth');
-    async function load() {
+    const $ = (id) => document.getElementById(id);
+
+    // Coordinates only come from a chosen suggestion, the map pin or current location.
+    const loc = { from: null, to: null };   // { lat, lng }
+
+    function markLoc(kind, point) {
+      loc[kind] = point ? { lat: Number(point.lat), lng: Number(point.lng) } : null;
+      const ok = $(kind === 'from' ? 'pickupOk' : 'dropoffOk');
+      if (ok) ok.classList.toggle('show', !!loc[kind]);
+    }
+    function showError(msg) {
+      const el = $('formError');
+      el.textContent = msg || '';
+      el.classList.toggle('d-none', !msg);
+    }
+
+    /* ---------- current location as pickup (same default as the app) ---------- */
+    async function useCurrentPickup(silent) {
+      const btn = $('btnHere');
       try {
-        const data = await Api.rider.parcels();
-        const list = Array.isArray(data) ? data : [];
-        const el = document.getElementById('list');
+        if (btn) btn.disabled = true;
+        const here = await ZenjiMap.getCurrentPosition(10000);
+        if (!here) { if (!silent) showToast('Location is unavailable. Allow location access or search for a place.', 'warning'); return; }
+        let addr = null;
+        try { addr = await ZenjiMap.reverseGeocode(here.lat, here.lng); } catch (_) {}
+        $('pickup').value = addr || 'Current location';
+        markLoc('from', here);
+      } finally { if (btn) btn.disabled = false; }
+    }
+
+    /* ---------- suggestions ---------- */
+    async function wireAutocomplete() {
+      const country = (ZENJIGO_CONFIG.MAP && ZENJIGO_CONFIG.MAP.COUNTRY) || 'tz';
+      try {
+        await ZenjiMap.attachAutocomplete($('pickup'), (p) => markLoc('from', p), { country, onType: () => markLoc('from', null) });
+        await ZenjiMap.attachAutocomplete($('dropoff'), (p) => markLoc('to', p), { country, onType: () => markLoc('to', null) });
+      } catch (e) {
+        console.warn('Autocomplete unavailable:', e && e.message);
+        showToast('Location suggestions are unavailable right now. Please try again shortly.', 'warning');
+      }
+    }
+
+    /* ---------- weight / date ---------- */
+    $('weight').addEventListener('input', (e) => { $('weightLabel').textContent = Number(e.target.value).toFixed(1) + ' kg'; });
+    function resetDateLimits() {
+      $('pickDate').min = eatDateString(0);
+      $('pickDate').max = eatDateString(60);
+    }
+
+    /* ---------- booking ---------- */
+    async function book() {
+      showError('');
+      const from = $('pickup').value.trim(), to = $('dropoff').value.trim();
+      const desc = $('desc').value.trim(), phone = $('receiverPhone').value.trim();
+      const date = $('pickDate').value, time = $('pickTime').value;
+      if (!loc.from || !loc.to || !from || !to || !desc || !phone || !date || !time) {
+        return showError('Select pickup & delivery from the suggestions, then add a description, receiver phone, date and time.');
+      }
+      if (String(phone).replace(/\D/g, '').length < 9) return showError('Enter a valid receiver phone number.');
+      const pickupAt = eatToUtcString(date, time);
+      if (new Date(pickupAt.replace(' ', 'T') + 'Z').getTime() < Date.now() - 60000) return showError('Pickup time must be in the future.');
+
+      const btn = $('btnBook');
+      setLoading(btn, true);
+      try {
+        // Same payload the mobile app sends to POST /rider/parcels.
+        const result = await Api.rider.createParcel({
+          pickupAddress: from, pickupLat: loc.from.lat, pickupLng: loc.from.lng,
+          deliveryAddress: to, deliveryLat: loc.to.lat, deliveryLng: loc.to.lng,
+          description: desc,
+          weightKg: Number($('weight').value),
+          pickupAt,
+          receiverPhone: phone,
+          receiverName: $('receiverName').value.trim()
+        });
+        const r = result || {};
+        $('okCode').textContent = String(r.code || r.parcel_code || r.id || '—');
+        $('okWhen').textContent = formatEat(pickupAt);
+        $('formCard').classList.add('d-none');
+        $('successCard').classList.remove('d-none');
+        $('pageTitle').textContent = 'Parcel booked';
+        resetForm();
+        loadParcels();
+      } catch (e) {
+        showError(e.message || 'Could not book the parcel.');
+      } finally { setLoading(btn, false); }
+    }
+
+    function resetForm() {
+      ['dropoff', 'desc', 'receiverPhone', 'receiverName', 'pickDate', 'pickTime'].forEach((id) => { $(id).value = ''; });
+      $('weight').value = 1; $('weightLabel').textContent = '1.0 kg';
+      markLoc('to', null);
+    }
+    $('btnBook').addEventListener('click', book);
+    $('btnHere').addEventListener('click', () => useCurrentPickup(false));
+    $('btnAnother').addEventListener('click', () => {
+      $('successCard').classList.add('d-none');
+      $('formCard').classList.remove('d-none');
+      $('pageTitle').textContent = 'Send a Parcel';
+      useCurrentPickup(true);
+    });
+
+    /* ---------- my parcels ---------- */
+    async function loadParcels() {
+      const el = $('list');
+      try {
+        const list = pickList(await Api.rider.parcels(), ['parcels', 'items']);
         if (!list.length) { el.innerHTML = '<div class="text-center py-4 text-muted">No parcels yet.</div>'; return; }
-        el.innerHTML = list.map(p => '<div class="px-3 py-3 border-bottom"><div class="fw-semibold">' + (p.pickupAddress||p.pickup||'') + ' → ' + (p.dropoffAddress||p.destination||'') + '</div><div class="small text-muted">' + (p.description||'') + ' · ' + (p.status||'') + '</div></div>').join('');
-      } catch (e) { document.getElementById('list').innerHTML = '<div class="p-3 text-danger">' + esc(e.message) + '</div>'; }
+        el.innerHTML = list.map((p) => {
+          const code = p.parcel_code || p.code || 'Parcel';
+          const from = p.pickup_address || p.pickupAddress || '';
+          const to = p.delivery_address || p.deliveryAddress || '';
+          const when = formatEat(p.pickup_at || p.pickupAt);
+          return `<div class="parcel-item">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+              <div class="fw-semibold"><i class="bi bi-box-seam me-2 text-teal"></i>${esc(code)}</div>${statusBadge(p.status)}
+            </div>
+            <div class="small mt-1">${esc(from)} <i class="bi bi-arrow-right mx-1"></i> ${esc(to)}</div>
+            <div class="small text-muted mt-1">When: ${esc(when)}${p.description ? ' · ' + esc(p.description) : ''}</div>
+          </div>`;
+        }).join('');
+      } catch (e) {
+        el.innerHTML = '<div class="p-3 text-danger small">' + esc(e.message) + '</div>';
+      }
     }
-    async function createParcel() {
-      try {
-        await Api.rider.createParcel({ pickupAddress: document.getElementById('pickup').value, destinationAddress: document.getElementById('dropoff').value, description: document.getElementById('desc').value, recipientPhone: document.getElementById('recipient').value });
-        showToast('Parcel requested'); bootstrap.Modal.getInstance(document.getElementById('addModal')).hide(); load();
-      } catch (e) { showToast(e.message, 'error'); }
-    }
-    load();
+
+    resetDateLimits();
+    loadParcels();
+    wireAutocomplete().then(() => useCurrentPickup(true));
   </script>
   <script src="../js/rider-ui.js"></script>
 </body>
