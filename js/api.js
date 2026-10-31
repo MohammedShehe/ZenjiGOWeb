@@ -229,6 +229,7 @@ const Api = (() => {
         }
       }),
     topUpStatus: (id) => data('GET', '/rider/wallet/topup/' + id),
+    topUpCancel: (id) => data('POST', '/rider/wallet/topup/' + id + '/cancel'),
     promos: () => data('GET', '/promos'),
     applyPromo: (code, rideId) =>
       data('POST', '/promos/apply', { body: { code, ...(rideId ? { rideId } : {}) } }),

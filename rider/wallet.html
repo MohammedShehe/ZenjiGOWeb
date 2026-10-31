@@ -31,6 +31,27 @@
     .topup-status.error{background:rgba(239,68,68,.1);color:#b91c1c}
     .topup-status.warning{background:rgba(245,158,11,.12);color:#b45309}
     .sum-row{display:flex;justify-content:space-between;padding:4px 0}
+    /* live card preview */
+    .cc-wrap{perspective:1000px;max-width:340px;margin:0 auto 16px}
+    .cc{position:relative;width:100%;aspect-ratio:1.586;transform-style:preserve-3d;transition:transform .6s cubic-bezier(.2,.7,.2,1);cursor:pointer}
+    .cc.flip{transform:rotateY(180deg)}
+    .cc .face{position:absolute;inset:0;border-radius:20px;padding:20px 22px;color:#fff;backface-visibility:hidden;-webkit-backface-visibility:hidden;box-shadow:0 14px 30px rgba(11,42,60,.28);background:linear-gradient(135deg,var(--c1,#0b2a3c),var(--c2,#0a8f93));display:flex;flex-direction:column;justify-content:space-between;overflow:hidden}
+    .cc .face.back{transform:rotateY(180deg);padding:0}
+    .cc .brand{display:flex;justify-content:space-between;align-items:center;font-weight:800;letter-spacing:.5px}
+    .cc .chip{width:42px;height:30px;border-radius:7px;background:linear-gradient(135deg,#f3d98b,#c9a24a)}
+    .cc .num{font-size:1.28rem;font-weight:700;letter-spacing:2px;font-variant-numeric:tabular-nums;text-shadow:0 1px 2px rgba(0,0,0,.3)}
+    .cc .meta{display:flex;justify-content:space-between;gap:10px;font-size:.78rem}
+    .cc .meta small{display:block;opacity:.65;font-size:.6rem;letter-spacing:1px;text-transform:uppercase}
+    .cc .meta b{font-size:.9rem;letter-spacing:1px;text-transform:uppercase}
+    .cc .strip{height:44px;background:#111;margin-top:24px}
+    .cc .sig{margin:18px 20px 0;background:#f5f5f5;color:#111;border-radius:6px;padding:8px 12px;text-align:right;font-style:italic;font-weight:700;letter-spacing:2px}
+    .cc .backnote{padding:12px 20px;font-size:.62rem;opacity:.7}
+    .seg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .seg .method-choice{margin-bottom:0;flex-direction:column;text-align:center;gap:6px;justify-content:center}
+    .seg .method-choice i.radio{display:none}
+    .secure-note{background:rgba(11,153,146,.08);border-radius:14px;padding:12px 14px;font-size:.8rem}
+    .topup-wait{text-align:center;padding:12px 4px}
+    .topup-wait .big{font-size:3.4rem}
   </style>
 </head>
 <body class="app-shell">
@@ -104,16 +125,54 @@
           <input type="number" id="topupAmount" class="form-control mb-1" min="500" max="100000" step="500" value="5000" inputmode="numeric" aria-label="Amount in TZS">
           <div class="form-text mb-3">Minimum TZS 500 · Maximum TZS 100,000 per top-up</div>
 
-          <div class="d-flex align-items-center mb-2">
-            <label class="fw-bold mb-0">Pay using</label>
-            <a href="payments.html" class="ms-auto small fw-semibold text-decoration-none"><i class="bi bi-plus-lg"></i> Add</a>
+          <div class="fw-bold mb-2">Pay using</div>
+          <div class="seg mb-3" id="methodSeg">
+            <button type="button" class="method-choice active" data-m="momo"><i class="bi bi-phone mi"></i><span class="t">Mobile Money</span></button>
+            <button type="button" class="method-choice" data-m="card"><i class="bi bi-credit-card-2-front mi"></i><span class="t">Card / Bank</span></button>
           </div>
-          <div id="methodList"><div class="text-center py-3"><div class="spinner-zenji mx-auto"></div></div></div>
 
-          <div class="mb-3 mt-3">
-            <label class="form-label small fw-semibold" for="topupPhone">Mobile money phone (required)</label>
-            <input type="tel" id="topupPhone" class="form-control" placeholder="255712345678" inputmode="tel" autocomplete="tel">
-            <div class="form-text">You will receive a prompt on this number to confirm with your PIN.</div>
+          <!-- Mobile money -->
+          <div id="momoPane" class="mb-3">
+            <label class="form-label small fw-semibold" for="topupPhone">Mobile money phone number</label>
+            <input type="tel" id="topupPhone" class="form-control" placeholder="0712 345 678" inputmode="tel" autocomplete="tel">
+            <div class="form-text">You will receive a prompt on this number. Enter your PIN to approve.</div>
+          </div>
+
+          <!-- Card / bank: live preview + form -->
+          <div id="cardPane" class="mb-3" style="display:none">
+            <div class="cc-wrap"><div class="cc" id="cc">
+              <div class="face front">
+                <div class="brand"><span class="chip"></span><span id="ccBrand">BANK CARD</span></div>
+                <div class="num" id="ccNum">•••• •••• •••• ••••</div>
+                <div class="meta"><div><small>Card holder</small><b id="ccHolder">YOUR NAME</b></div><div><small>Expires</small><b id="ccExp">MM/YY</b></div></div>
+              </div>
+              <div class="face back">
+                <div class="strip"></div>
+                <div class="sig" id="ccCvv">•••</div>
+                <div class="backnote">Tap the card to flip it back.</div>
+              </div>
+            </div></div>
+
+            <div id="savedCards" class="mb-2"></div>
+
+            <div id="newCardFields">
+              <div class="mb-2"><label class="form-label small fw-semibold" for="cardHolder">Card holder name</label>
+                <input id="cardHolder" class="form-control" autocomplete="cc-name" maxlength="26" placeholder="As shown on the card"><div class="invalid-feedback"></div></div>
+              <div class="mb-2"><label class="form-label small fw-semibold" for="cardNumber">Card number</label>
+                <input id="cardNumber" class="form-control" inputmode="numeric" autocomplete="cc-number" placeholder="1234 5678 9012 3456"><div class="invalid-feedback"></div></div>
+              <div class="row g-2 mb-2">
+                <div class="col-6"><label class="form-label small fw-semibold" for="cardExpiry">Expiry (MM/YY)</label>
+                  <input id="cardExpiry" class="form-control" inputmode="numeric" autocomplete="cc-exp" maxlength="5" placeholder="MM/YY"><div class="invalid-feedback"></div></div>
+                <div class="col-6"><label class="form-label small fw-semibold" for="cardCvv">CVV</label>
+                  <input id="cardCvv" type="password" class="form-control" inputmode="numeric" autocomplete="cc-csc" maxlength="4" placeholder="•••"><div class="invalid-feedback"></div></div>
+              </div>
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" id="saveCard" checked>
+                <label class="form-check-label small" for="saveCard">Save this card for next time <span class="text-muted">(only last 4 digits, name and expiry)</span></label>
+              </div>
+            </div>
+
+            <div class="secure-note"><i class="bi bi-shield-lock me-1"></i>Your card number and CVV stay in this browser. You approve the payment on your bank's secure page (3-D Secure / OTP) and your wallet is credited only after the bank confirms.</div>
           </div>
 
           <div class="border rounded-4 p-3 mb-2" id="summaryBox">
@@ -126,20 +185,17 @@
         <div class="modal-footer border-0 px-4 pb-4">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
           <button class="btn btn-primary-zenji px-4" id="btnTopup" type="button" data-no-auto-loading="true" onclick="doTopup()">
-            <i class="bi bi-lock me-2"></i>Confirm secure top-up
+            <i class="bi bi-lock me-2"></i><span id="btnTopupLbl">Send payment prompt</span>
           </button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Success dialog (same wording as the app) -->
-  <div class="modal fade" id="doneModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered"><div class="modal-content rounded-4 text-center p-4">
-      <i class="bi bi-check-circle-fill text-success" style="font-size:3.5rem"></i>
-      <h5 class="fw-bold mt-2">Top-up request submitted</h5>
-      <p class="text-muted mb-3">Your payment request was submitted. Your wallet balance updates only after the payment provider confirms it.</p>
-      <button class="btn btn-primary-zenji" data-bs-dismiss="modal">Done</button>
+  <!-- Payment progress dialog -->
+  <div class="modal fade" id="doneModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered"><div class="modal-content rounded-4 p-4">
+      <div class="topup-wait" id="waitBox"></div>
     </div></div>
   </div>
 
@@ -169,8 +225,12 @@
     let balance = 0;
     let balanceHidden = true;           // hidden by default, like the app
     let methods = [];                   // saved payment methods (momo / bank card)
-    let selected = null;                // { id, type, label }
+    let method = 'momo';                // 'momo' | 'card'
+    let savedCardId = null;             // null => enter a new card
+    let flipped = false;
     let pollTimer = null;
+    let currentPaymentId = null;
+    let currentCheckoutUrl = null;
 
     /* ---------- helpers ---------- */
     function setStatus(message, type = 'info') {
@@ -211,59 +271,141 @@
       const a = getAmount();
       $('sumAmount').textContent = a >= MIN ? formatMoney(a) : '—';
       $('sumNew').textContent = a >= MIN ? formatMoney(balance + a) : '—';
-      $('sumVia').textContent = selected ? 'Payment: ' + selected.label : '';
+      $('sumVia').textContent = method === 'card' ? 'Payment: Card / Bank (secure checkout)' : 'Payment: Mobile Money';
     }
 
-    /* ---------- payment methods ---------- */
-    function methodLabel(m) {
-      const t = String(m.type || '').toLowerCase();
-      const isCard = t === 'bank' || t === 'card';
-      return {
-        isCard,
-        title: isCard ? (m.cardBrand ? m.cardBrand + ' Card' : 'Bank Card') : (m.provider || 'Mobile Money'),
-        sub: isCard ? '•••• ' + (m.cardLast4 || '') : (m.accountNumber || '')
-      };
+    /* ---------- card helpers + live preview ---------- */
+    const BRANDS = {
+      visa:       { label: 'VISA',       len: 16, cvv: 3, c: ['#12296b', '#2e6fe0'] },
+      mastercard: { label: 'MASTERCARD', len: 16, cvv: 3, c: ['#1e2230', '#6b2d3c'] },
+      amex:       { label: 'AMEX',       len: 15, cvv: 4, c: ['#0a5e66', '#38b8a8'] },
+      discover:   { label: 'DISCOVER',   len: 16, cvv: 3, c: ['#3b2a20', '#e2782c'] },
+      unknown:    { label: 'BANK CARD',  len: 16, cvv: 3, c: ['#0b2a3c', '#0a8f93'] }
+    };
+    function detectBrand(d) {
+      if (!d) return 'unknown';
+      if (d[0] === '4') return 'visa';
+      if (/^3[47]/.test(d)) return 'amex';
+      const p2 = +d.slice(0, 2), p4 = +d.slice(0, 4), p3 = +d.slice(0, 3);
+      if (p2 >= 51 && p2 <= 55) return 'mastercard';
+      if (p4 >= 2221 && p4 <= 2720) return 'mastercard';
+      if (p2 === 65 || (p3 >= 644 && p3 <= 649) || p4 === 6011) return 'discover';
+      return 'unknown';
     }
-    function renderMethods() {
-      const el = $('methodList');
-      const rows = methods.map((m) => {
-        const L = methodLabel(m);
-        const on = selected && String(selected.id) === String(m.id);
+    function groupNumber(d, brand) {
+      const g = brand === 'amex' ? [4, 6, 5] : [4, 4, 4, 4];
+      const out = []; let i = 0;
+      g.forEach((n) => { if (d.length > i) out.push(d.slice(i, i + n)); i += n; });
+      return out.join(' ');
+    }
+    function luhn(d) {
+      let sum = 0, alt = false;
+      for (let i = d.length - 1; i >= 0; i--) { let n = +d[i]; if (alt) { n *= 2; if (n > 9) n -= 9; } sum += n; alt = !alt; }
+      return sum % 10 === 0;
+    }
+    function cardDigits() { return digits($('cardNumber').value); }
+    function currentBrand() { return detectBrand(cardDigits()); }
+    function savedCard() { return savedCardId ? methods.find((m) => String(m.id) === String(savedCardId) && isCardMethod(m)) : null; }
+    function isCardMethod(m) { const t = String(m.type || '').toLowerCase(); return t === 'bank' || t === 'card'; }
+    function savedExpiry(m) {
+      if (m.expiry) return m.expiry;
+      if (m.expiryMonth && m.expiryYear) return String(m.expiryMonth).padStart(2, '0') + '/' + String(m.expiryYear).slice(-2);
+      return '';
+    }
+    function setFlip(v) { flipped = v; $('cc').classList.toggle('flip', v); }
+
+    function renderPreview() {
+      const sc = savedCard();
+      let brandKey, num, holder, exp, cvv;
+      if (sc) {
+        brandKey = String(sc.cardBrand || 'unknown').toLowerCase(); if (!BRANDS[brandKey]) brandKey = 'unknown';
+        num = '•••• •••• •••• ' + (sc.cardLast4 || '••••');
+        holder = sc.cardHolder || 'YOUR NAME'; exp = savedExpiry(sc) || 'MM/YY'; cvv = '•••';
+      } else {
+        brandKey = currentBrand();
+        const d = cardDigits().slice(0, BRANDS[brandKey].len);
+        const padded = d + '•'.repeat(BRANDS[brandKey].len - d.length);
+        num = groupNumber(padded, brandKey);
+        holder = $('cardHolder').value.trim() || 'YOUR NAME';
+        exp = $('cardExpiry').value || 'MM/YY';
+        cvv = '•'.repeat(Math.max(3, $('cardCvv').value.length)) ;
+      }
+      const B = BRANDS[brandKey];
+      const cc = $('cc');
+      cc.querySelectorAll('.face').forEach((f) => { f.style.setProperty('--c1', B.c[0]); f.style.setProperty('--c2', B.c[1]); });
+      $('ccBrand').textContent = B.label;
+      $('ccNum').textContent = num;
+      $('ccHolder').textContent = holder;
+      $('ccExp').textContent = exp;
+      $('ccCvv').textContent = cvv;
+      const cv = $('cardCvv'); if (cv) cv.maxLength = B.cvv;
+    }
+
+    function fieldError(id, msg) {
+      const el = $(id); el.classList.toggle('is-invalid', !!msg);
+      const fb = el.parentElement.querySelector('.invalid-feedback'); if (fb) fb.textContent = msg || '';
+      return msg;
+    }
+    function validateNewCard() {
+      const b = BRANDS[currentBrand()], d = cardDigits();
+      let bad = false;
+      const holder = $('cardHolder').value.trim();
+      bad = !!fieldError('cardHolder', holder.length < 2 ? 'Enter the name as shown on the card' : '') || bad;
+      bad = !!fieldError('cardNumber', d.length !== b.len ? 'Enter all ' + b.len + ' digits' : (!luhn(d) ? 'This card number is not valid' : '')) || bad;
+      const m = /^(\d{2})\/(\d{2})$/.exec($('cardExpiry').value);
+      let eerr = '';
+      if (!m) eerr = 'Use MM/YY';
+      else {
+        const mm = +m[1], yy = 2000 + +m[2], now = new Date();
+        if (mm < 1 || mm > 12) eerr = 'Invalid month';
+        else if (yy < now.getFullYear() || (yy === now.getFullYear() && mm < now.getMonth() + 1)) eerr = 'This card has expired';
+      }
+      bad = !!fieldError('cardExpiry', eerr) || bad;
+      bad = !!fieldError('cardCvv', digits($('cardCvv').value).length !== b.cvv ? b.cvv + ' digits' : '') || bad;
+      return !bad;
+    }
+
+    function renderSavedCards() {
+      const cards = methods.filter(isCardMethod);
+      const box = $('savedCards');
+      if (!cards.length) { box.innerHTML = ''; $('newCardFields').style.display = ''; return; }
+      const rows = cards.map((m) => {
+        const on = String(savedCardId) === String(m.id);
+        const exp = savedExpiry(m);
         return `<button type="button" class="method-choice${on ? ' active' : ''}" data-id="${esc(m.id)}">
-          <i class="bi ${L.isCard ? 'bi-credit-card-2-front' : 'bi-phone'} mi"></i>
-          <span><span class="t d-block">${esc(L.title)}</span><span class="s">${esc(L.sub)}</span></span>
+          <i class="bi bi-credit-card-2-front mi"></i>
+          <span><span class="t d-block">${esc(m.provider || m.cardBrand || 'Bank Card')}</span><span class="s">•••• ${esc(m.cardLast4 || '')}${exp ? ' · ' + esc(exp) : ''}</span></span>
           <i class="bi ${on ? 'bi-record-circle-fill' : 'bi-circle'} radio"></i></button>`;
       });
-      // Always-available one-time options so a rider with no saved method can still top up.
-      [['__momo', 'bi-phone', 'Mobile Money', 'Use the phone number below'],
-       ['__card', 'bi-credit-card-2-front', 'Card / Bank', 'Secure hosted checkout']].forEach(([id, icon, t, s]) => {
-        const on = selected && selected.id === id;
-        rows.push(`<button type="button" class="method-choice${on ? ' active' : ''}" data-id="${id}">
-          <i class="bi ${icon} mi"></i><span><span class="t d-block">${t}</span><span class="s">${s}</span></span>
-          <i class="bi ${on ? 'bi-record-circle-fill' : 'bi-circle'} radio"></i></button>`);
-      });
-      el.innerHTML = (methods.length ? '' : '<div class="small text-muted mb-2"><i class="bi bi-info-circle me-1"></i>No saved payment method yet. <a href="payments.html">Add one</a> or use a one-time option below.</div>') + rows.join('');
-      el.querySelectorAll('.method-choice').forEach((b) => b.addEventListener('click', () => selectMethod(b.dataset.id)));
+      const newOn = !savedCardId;
+      rows.push(`<button type="button" class="method-choice${newOn ? ' active' : ''}" data-id="">
+        <i class="bi bi-plus-circle mi"></i><span><span class="t d-block">Use a new card</span></span>
+        <i class="bi ${newOn ? 'bi-record-circle-fill' : 'bi-circle'} radio"></i></button>`);
+      box.innerHTML = rows.join('');
+      box.querySelectorAll('.method-choice').forEach((b) => b.addEventListener('click', () => { savedCardId = b.dataset.id || null; setFlip(false); renderSavedCards(); renderPreview(); }));
+      $('newCardFields').style.display = savedCardId ? 'none' : '';
     }
-    function selectMethod(id) {
-      if (id === '__momo') selected = { id, apiMethod: 'momo', label: 'Mobile Money' };
-      else if (id === '__card') selected = { id, apiMethod: 'card', label: 'Card / Bank' };
-      else {
-        const m = methods.find((x) => String(x.id) === String(id));
-        if (!m) return;
-        const L = methodLabel(m);
-        selected = { id: m.id, apiMethod: L.isCard ? 'card' : 'momo', label: L.title, account: m.accountNumber };
-        if (!L.isCard && m.accountNumber && !$('topupPhone').value) $('topupPhone').value = m.accountNumber;
-      }
-      renderMethods();
-      updateSummary();
-      setStatus('');
+
+    function setMethod(m) {
+      method = m;
+      document.querySelectorAll('#methodSeg .method-choice').forEach((b) => b.classList.toggle('active', b.dataset.m === m));
+      $('momoPane').style.display = m === 'momo' ? '' : 'none';
+      $('cardPane').style.display = m === 'card' ? '' : 'none';
+      $('btnTopupLbl').textContent = m === 'card' ? 'Continue to secure payment' : 'Send payment prompt';
+      setStatus(''); updateSummary();
+      if (m === 'card') { renderSavedCards(); renderPreview(); }
     }
+
     async function loadMethods() {
       try { methods = pickList(await Api.rider.paymentMethods(), ['methods', 'paymentMethods', 'items']).filter((m) => ['momo', 'bank', 'card'].includes(String(m.type).toLowerCase())); }
       catch (_) { methods = []; }
-      const def = methods.find((m) => m.isDefault || m.is_default) || methods[0];
-      if (!selected) { if (def) selectMethod(def.id); else selectMethod('__momo'); } else renderMethods();
+      const momo = methods.filter((m) => String(m.type).toLowerCase() === 'momo');
+      const cards = methods.filter(isCardMethod);
+      const defMomo = momo.find((m) => m.isDefault || m.is_default) || momo[0];
+      if (defMomo && defMomo.accountNumber && !$('topupPhone').value) $('topupPhone').value = defMomo.accountNumber;
+      if (!savedCardId && cards.length) { const dc = cards.find((m) => m.isDefault || m.is_default) || cards[0]; savedCardId = dc.id; }
+      if (!momo.length && cards.length && method === 'momo' && !$('topupPhone').value) setMethod('card');
+      if (method === 'card') { renderSavedCards(); renderPreview(); }
     }
 
     /* ---------- wallet + history ---------- */
@@ -309,26 +451,61 @@
       setStatus('');
       renderBalance();
       loadMethods();
+      setMethod(method);
       bootstrap.Modal.getOrCreateInstance($('topupModal')).show();
     }
 
     function stopPolling() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
-    function startPolling(paymentId) {
+
+    function showWait(state, extra) {
+      const box = $('waitBox');
+      const a = getAmount();
+      const views = {
+        waitingCard: ['<div class="spinner-zenji mx-auto mb-3"></div>', 'Complete payment on the secure page', 'Approve the payment with your bank (OTP / 3-D Secure), then come back here. We confirm automatically.', true],
+        waitingMomo: ['<div class="spinner-zenji mx-auto mb-3"></div>', 'Approve the prompt on your phone', 'Enter your mobile-money PIN to approve ' + formatMoney(a) + '. This window updates by itself.', false],
+        success: ['<i class="bi bi-check-circle-fill text-success big"></i>', 'Wallet topped up', 'Your wallet was credited. New balance: ' + formatMoney(balance) + '.', false],
+        failed: ['<i class="bi bi-x-circle-fill text-danger big"></i>', 'Payment not completed', 'The payment was declined or cancelled. Your wallet was not charged or changed.', false],
+        timeout: ['<i class="bi bi-hourglass-split text-warning big"></i>', 'Still waiting for confirmation', 'If you already approved the payment, your wallet updates automatically once it arrives.', false]
+      };
+      const v = views[state];
+      const waiting = state === 'waitingCard' || state === 'waitingMomo';
+      box.innerHTML = `${v[0]}<h5 class="fw-bold mt-1">${v[1]}</h5><p class="text-muted">${v[2]}</p>
+        ${v[3] && currentCheckoutUrl ? '<button class="btn btn-primary-zenji w-100 mb-2" id="wReopen"><i class="bi bi-box-arrow-up-right me-1"></i>Reopen secure payment page</button>' : ''}
+        ${waiting ? '<button class="btn btn-outline-secondary w-100 mb-1" id="wCheck">I have paid. Check now</button><button class="btn btn-link text-muted w-100" id="wCancel">Cancel payment</button>'
+                  : '<button class="btn btn-primary-zenji w-100" data-bs-dismiss="modal">Done</button>'}`;
+      const g = (id) => box.querySelector('#' + id);
+      if (g('wReopen')) g('wReopen').onclick = () => { location.href = currentCheckoutUrl; };
+      if (g('wCheck')) g('wCheck').onclick = () => checkNow();
+      if (g('wCancel')) g('wCancel').onclick = cancelPayment;
+      bootstrap.Modal.getOrCreateInstance($('doneModal')).show();
+    }
+
+    function startPolling(paymentId, opts = {}) {
       stopPolling();
       if (!paymentId) return;
+      currentPaymentId = paymentId;
       let tries = 0;
-      pollTimer = setInterval(async () => {
+      const max = opts.max || 60;       // ~3 minutes at 3s
+      const tick = async () => {
         tries++;
         try {
           const st = await Api.rider.topUpStatus(paymentId);
           const status = String((st && (st.status || (st.data && st.data.status))) || '').toLowerCase();
-          if (['success', 'completed', 'paid'].includes(status)) {
-            stopPolling(); showToast('Wallet credited successfully'); load();
-          } else if (['failed', 'cancelled', 'canceled'].includes(status)) {
-            stopPolling(); showToast('The top-up payment was not completed.', 'error'); load();
-          } else if (tries >= 20) { stopPolling(); load(); }
-        } catch (_) { if (tries >= 20) stopPolling(); }
-      }, 3000);
+          if (['success', 'completed', 'paid'].includes(status)) { stopPolling(); await load(); showWait('success'); return; }
+          if (['failed', 'cancelled', 'canceled', 'expired'].includes(status)) { stopPolling(); load(); showWait('failed'); return; }
+        } catch (_) { /* keep polling */ }
+        if (tries >= max) { stopPolling(); load(); showWait('timeout'); }
+      };
+      pollTimer = setInterval(tick, 3000);
+      tick();
+    }
+    function checkNow() { if (currentPaymentId) startPolling(currentPaymentId, { max: 5 }); }
+    async function cancelPayment() {
+      stopPolling();
+      if (currentPaymentId) { try { await Api.rider.topUpCancel(currentPaymentId); } catch (_) {} }
+      sessionStorage.removeItem('zenjigo_pending_topup');
+      bootstrap.Modal.getOrCreateInstance($('doneModal')).hide();
+      showToast('Payment cancelled.', 'info');
     }
 
     async function doTopup() {
@@ -336,30 +513,50 @@
       const btn = $('btnTopup');
       if (!amount || amount < MIN) return setStatus('Enter a valid amount (minimum TZS 500).', 'error');
       if (amount > MAX) return setStatus('The maximum per top-up is TZS 100,000.', 'error');
-      if (!selected) return setStatus('Choose how you want to pay.', 'error');
-      const phoneRaw = $('topupPhone').value.trim();
-      if (digits(phoneRaw).length < 9) return setStatus('Enter a valid mobile money phone number.', 'error');
+
+      let phone = null, card = null;
+      if (method === 'momo') {
+        phone = normalizeMsisdn($('topupPhone').value);
+        if (!/^255[67]\d{8}$/.test(phone)) return setStatus('Enter a valid Tanzania mobile money number.', 'error');
+      } else {
+        const sc = savedCard();
+        if (sc) card = { brand: String(sc.cardBrand || '').toLowerCase(), last4: sc.cardLast4, holder: sc.cardHolder };
+        else {
+          if (!validateNewCard()) return setStatus('Complete the card details correctly.', 'error');
+          const d = cardDigits();
+          card = { brand: currentBrand(), last4: d.slice(-4), holder: $('cardHolder').value.trim() };
+          if ($('saveCard').checked) {
+            // Only masked facts are stored; the number and CVV are never sent anywhere.
+            try {
+              await Api.rider.addPaymentMethod({ type: 'card', label: card.holder, provider: BRANDS[card.brand].label, cardBrand: card.brand, cardHolder: card.holder,
+                account: '', last4: card.last4, cardLast4: card.last4, expiry: $('cardExpiry').value.trim() });
+            } catch (_) {}
+          }
+        }
+      }
 
       setLoading(btn, true);
-      setStatus(selected.apiMethod === 'card' ? 'Preparing secure checkout…' : 'Sending mobile money prompt…', 'info');
+      setStatus(method === 'card' ? 'Preparing secure checkout…' : 'Sending mobile money prompt…', 'info');
       try {
-        const callbackUrl = location.origin + location.pathname + '?topup=1';
-        const res = await Api.rider.topUp(amount, selected.apiMethod, normalizeMsisdn(phoneRaw), { callbackUrl });
+        const base = location.origin + location.pathname;
+        const res = await Api.rider.topUp(amount, method, phone, method === 'card' ? { card, callbackUrl: base + '?topup=1', cancelUrl: base + '?topup=cancelled' } : {});
         const paymentId = res && (res.paymentId || res.id || (res.data && res.data.paymentId));
         const paymentUrl = res && (res.paymentUrl || res.payment_url || (res.data && (res.data.paymentUrl || res.data.payment_url)));
+        $('cardNumber').value = ''; $('cardCvv').value = ''; // never keep card data around
 
-        if (paymentUrl && selected.apiMethod === 'card') {
+        bootstrap.Modal.getOrCreateInstance($('topupModal')).hide();
+        currentPaymentId = paymentId; currentCheckoutUrl = paymentUrl || null;
+        if (method === 'card') {
+          if (!paymentUrl) throw new Error('The card checkout could not be opened. Please try again.');
           if (paymentId) sessionStorage.setItem('zenjigo_pending_topup', String(paymentId));
-          setStatus('Redirecting to secure checkout…', 'success');
-          location.href = paymentUrl;
+          showWait('waitingCard');
+          setTimeout(() => { location.href = paymentUrl; }, 900);
           return;
         }
-        bootstrap.Modal.getOrCreateInstance($('topupModal')).hide();
-        bootstrap.Modal.getOrCreateInstance($('doneModal')).show();
+        showWait('waitingMomo');
         startPolling(paymentId);
-        load();
       } catch (e) {
-        setStatus((e && e.message) || 'Top-up could not be confirmed by the payment service. Your wallet was not changed. Please try again.', 'error');
+        setStatus((e && e.message) || 'Top-up could not be started. Your wallet was not changed. Please try again.', 'error');
       } finally {
         setLoading(btn, false);
       }
@@ -382,14 +579,39 @@
       $('topupModal').addEventListener('hidden.bs.modal', () => setStatus(''));
       setAmount(5000);
 
-      // Returning from hosted card checkout.
+      document.querySelectorAll('#methodSeg .method-choice').forEach((b) => b.addEventListener('click', () => setMethod(b.dataset.m)));
+      $('cc').addEventListener('click', () => setFlip(!flipped));
+      $('cardHolder').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/[^A-Za-z .'\-]/g, ''); renderPreview(); });
+      $('cardNumber').addEventListener('input', (e) => {
+        const b = detectBrand(digits(e.target.value));
+        e.target.value = groupNumber(digits(e.target.value).slice(0, BRANDS[b].len), b);
+        renderPreview();
+      });
+      $('cardExpiry').addEventListener('input', (e) => {
+        let d = digits(e.target.value);
+        if (d && +d[0] > 1) d = '0' + d;
+        d = d.slice(0, 4);
+        if (d.length >= 2 && (+d.slice(0, 2) < 1 || +d.slice(0, 2) > 12)) d = d.slice(0, 1);
+        e.target.value = d.length > 2 ? d.slice(0, 2) + '/' + d.slice(2) : d;
+        renderPreview();
+      });
+      $('cardCvv').addEventListener('input', (e) => { e.target.value = digits(e.target.value); renderPreview(); });
+      $('cardCvv').addEventListener('focus', () => { if (!savedCard()) setFlip(true); });
+      $('cardCvv').addEventListener('blur', () => setFlip(false));
+      renderPreview();
+
+      // Returning from the hosted card checkout (success or cancel).
       try {
         const q = new URLSearchParams(location.search);
-        if (q.get('topup') === '1') {
+        const t = q.get('topup');
+        if (t) {
           const pending = sessionStorage.getItem('zenjigo_pending_topup');
-          showToast('Checking payment status…');
-          if (pending) { startPolling(pending); sessionStorage.removeItem('zenjigo_pending_topup'); }
           history.replaceState({}, '', location.pathname);
+          if (pending) {
+            currentPaymentId = pending;
+            if (t === 'cancelled') { Api.rider.topUpCancel(pending).catch(() => {}); sessionStorage.removeItem('zenjigo_pending_topup'); showToast('Card payment cancelled.', 'info'); }
+            else { sessionStorage.removeItem('zenjigo_pending_topup'); showWait('waitingCard'); startPolling(pending); }
+          } else if (t !== 'cancelled') showToast('Checking payment status…');
         }
       } catch (_) {}
 
