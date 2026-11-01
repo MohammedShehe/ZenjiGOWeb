@@ -2,7 +2,7 @@
   'use strict';
   const SESSION_KEY = 'zenjigo_admin_session';
   const cfg = window.ZENJIGO_ADMIN_CONFIG || {};
-  const base = 'https://zenjigo-backend.onrender.com/api/v1';
+  const base = 'https://api.zenjigo.online/api/v1';
 
   function session() {
     try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch { return null; }
