@@ -137,6 +137,8 @@ const Api = (() => {
       const err = new Error(msg);
       err.status = res.status;
       err.data = data;
+      err.details = (data && data.details) || null;
+      err.code = err.details && err.details.code ? err.details.code : null; // e.g. ACTIVE_RIDE_EXISTS
       throw err;
     }
     return data;
@@ -194,6 +196,9 @@ const Api = (() => {
     quote: (body) => data('POST', '/rider/rides/quote', { body }),
     createRide: (body) => data('POST', '/rider/rides', { body }),
     getRide: (id) => data('GET', `/rider/rides/${id}`),
+    /** The rider's unfinished ride ({ride} or {ride:null}); lets the website resume after a refresh / new device. */
+    activeRide: () => data('GET', '/rider/rides/active'),
+    unratedRide: () => data('GET', '/rider/rides/unrated'),
     track: (id) => data('GET', `/rider/rides/${id}/track`),
     /** Cancel ride. Backend may apply a fee when cancellation is close to pickup / after driver accepted. */
     cancelRide: (id, reason) => data('POST', `/rider/rides/${id}/cancel`, { body: { reason } }),
@@ -276,6 +281,7 @@ const Api = (() => {
     rideRequests: () => data('GET', '/driver/ride-requests'),
     acceptRide: (id) => data('POST', `/driver/rides/${id}/accept`),
     getRide: (id) => data('GET', `/driver/rides/${id}`),
+    activeRide: () => data('GET', '/driver/rides/active'),
     /** otp = the rider's 4-digit trip PIN (required when status = 'started'). */
     updateStatus: (id, status, otp) =>
       data('PATCH', `/driver/rides/${id}/status`, { body: { status, ...(otp ? { otp: String(otp) } : {}) } }),

@@ -257,6 +257,9 @@
   /**
    * options: { center, zoom, markers:[{lat,lng,label,draggable,id,icon,title,info}], onMarkerDrag, onMapClick, fitBounds }
    */
+  // ZenjiGO "Zanzibar lagoon" look: sand land, turquoise water, coral highways.
+  const ZENJI_MAP_STYLE = [{"elementType":"geometry","stylers":[{"color":"#f6efe2"}]},{"elementType":"labels.icon","stylers":[{"visibility":"off"}]},{"elementType":"labels.text.fill","stylers":[{"color":"#6b5a45"}]},{"elementType":"labels.text.stroke","stylers":[{"color":"#fffaf0"},{"weight":3}]},{"featureType":"administrative.land_parcel","stylers":[{"visibility":"off"}]},{"featureType":"administrative.neighborhood","stylers":[{"visibility":"off"}]},{"featureType":"administrative.locality","elementType":"labels.text.fill","stylers":[{"color":"#0f6f7c"}]},{"featureType":"landscape.natural","elementType":"geometry","stylers":[{"color":"#efe5cf"}]},{"featureType":"landscape.man_made","elementType":"geometry","stylers":[{"color":"#f1e7d4"}]},{"featureType":"poi","stylers":[{"visibility":"off"}]},{"featureType":"poi.park","elementType":"geometry","stylers":[{"visibility":"on"},{"color":"#cfe7c9"}]},{"featureType":"poi.park","elementType":"labels","stylers":[{"visibility":"off"}]},{"featureType":"poi.attraction","elementType":"labels.text","stylers":[{"visibility":"on"}]},{"featureType":"road","elementType":"geometry","stylers":[{"color":"#ffffff"}]},{"featureType":"road","elementType":"geometry.stroke","stylers":[{"color":"#eadfc6"}]},{"featureType":"road.local","elementType":"labels","stylers":[{"visibility":"simplified"}]},{"featureType":"road.arterial","elementType":"geometry","stylers":[{"color":"#fffdf8"}]},{"featureType":"road.arterial","elementType":"geometry.stroke","stylers":[{"color":"#e6d7b8"}]},{"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#ffd9a3"}]},{"featureType":"road.highway","elementType":"geometry.stroke","stylers":[{"color":"#f2b66b"}]},{"featureType":"road.highway","elementType":"labels.text.fill","stylers":[{"color":"#9a6420"}]},{"featureType":"transit","stylers":[{"visibility":"off"}]},{"featureType":"water","elementType":"geometry","stylers":[{"color":"#7fd3dc"}]},{"featureType":"water","elementType":"labels.text.fill","stylers":[{"color":"#2a7d8b"}]},{"featureType":"water","elementType":"labels.text.stroke","stylers":[{"color":"#d9f4f6"}]}];
+
   async function createMap(elementId, options = {}) {
     await ensureGoogle();
     const el = document.getElementById(elementId);
@@ -277,7 +280,8 @@
       fullscreenControl: true,
       zoomControl: true,
       clickableIcons: false,
-      gestureHandling: 'greedy'
+      gestureHandling: 'greedy',
+      styles: ZENJI_MAP_STYLE
     });
     if (typeof options.onMapClick === 'function') {
       map.addListener('click', (e) => options.onMapClick({ lat: e.latLng.lat(), lng: e.latLng.lng() }));

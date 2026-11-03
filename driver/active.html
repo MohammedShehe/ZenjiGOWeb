@@ -65,6 +65,7 @@
         failures = 0; $('banner').innerHTML = '';
         render(); refreshMap();
       } catch (e) {
+        if (e.status === 404) { stopAll(); showToast('This ride is no longer assigned to you.', 'warning'); setTimeout(() => location.href = 'requests.html', 1500); polling = false; return; }
         failures++;
         if (!ride) $('info').innerHTML = '<div class="text-danger">' + esc(e.message) + '</div><button class="btn btn-outline-secondary btn-sm mt-3" onclick="loadRide()">Try again</button>';
         else if (failures >= 2) $('banner').innerHTML = '<div class="alert alert-warning py-2 small">Connection lost — retrying…</div>';
@@ -85,7 +86,7 @@
         '<div class="small text-muted">' + esc(String(r.ride_type || '').toUpperCase()) + ' · ' + esc(r.ride_code || ('Ride #' + id)) + '</div>' +
         (r.rider_name ? '<div class="mt-2 small"><i class="bi bi-person me-1"></i>' + esc(r.rider_name) + (r.rider_phone ? ' · <a href="tel:' + esc(r.rider_phone) + '">Call</a>' : '') + '</div>' : '');
 
-      if (st === 'cancelled') { stopAll(); showToast('This ride was cancelled.', 'warning'); setTimeout(() => location.href = 'requests.html', 1800); return; }
+      if (st === 'cancelled') { stopAll(); showToast(r.cancel_reason || 'This ride was cancelled.', 'warning'); setTimeout(() => location.href = 'requests.html', 1800); return; }
       if (st === 'completed') {
         stopAll();
         const share = r.driver_earnings != null ? ' Your share: ' + formatMoney(r.driver_earnings) + '.' : '';
@@ -116,7 +117,7 @@
 
     async function act(action) {
       if (busy) return;
-      if (action === 'cancelled' && !confirm('Cancel this ride?')) return;
+      if (action === 'cancelled' && !confirm('Hand this ride back? The rider will be matched with another driver.')) return;
       let otp;
       if (action === 'started') {
         otp = $('pin').value.trim();

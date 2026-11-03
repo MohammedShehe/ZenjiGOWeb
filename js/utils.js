@@ -190,3 +190,29 @@ function pickList(d, keys) {
   for (const k of (keys || [])) if (d && Array.isArray(d[k])) return d[k];
   return [];
 }
+
+/**
+ * "You have a ride in progress" banner. Shown on the home / booking / requests pages so a rider or driver can
+ * always get back to an unfinished ride (after a refresh, a new browser or a second device) instead of being
+ * stuck behind a "ride already in progress" error. Returns the active ride (or null).
+ */
+async function showResumeBanner(role) {
+  try {
+    const res = role === 'driver' ? await Api.driver.activeRide() : await Api.rider.activeRide();
+    const ride = res && res.ride;
+    const host = document.querySelector('.app-content');
+    const old = document.getElementById('resumeBanner');
+    if (old) old.remove();
+    if (!ride || !host) return ride || null;
+    const href = (role === 'driver' ? 'active.html?id=' : 'ride.html?id=') + encodeURIComponent(ride.id);
+    const labels = { searching: 'finding a driver', accepted: 'driver on the way', arriving: 'driver on the way', arrived: 'driver has arrived', started: 'trip in progress' };
+    const el = document.createElement('div');
+    el.id = 'resumeBanner';
+    el.className = 'alert alert-info d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3';
+    el.innerHTML = '<div><i class="bi bi-car-front-fill me-2"></i><strong>You have a ride in progress</strong> <span class="text-muted">· ' +
+      esc(labels[String(ride.status).toLowerCase()] || ride.status) + '</span></div>' +
+      '<a class="btn btn-primary-zenji btn-sm" href="' + href + '">Open ride</a>';
+    host.insertBefore(el, host.firstChild);
+    return ride;
+  } catch (_) { return null; }
+}

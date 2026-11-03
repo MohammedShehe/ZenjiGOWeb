@@ -193,11 +193,17 @@
         const id = ride.id || ride.rideId;
         setTimeout(() => location.href = id ? `ride.html?id=${id}` : 'history.html', 800);
       } catch (e) {
+        if (e.code === 'ACTIVE_RIDE_EXISTS' && e.details && e.details.rideId) {
+          showToast('You already have a ride in progress. Opening it…', 'warning');
+          setTimeout(() => location.href = 'ride.html?id=' + encodeURIComponent(e.details.rideId), 900);
+          return;
+        }
         showToast(e.message || 'Booking failed', 'error');
       } finally {
         setLoading(btn, false);
       }
     }
+    showResumeBanner('rider');
   </script>
   <script src="../js/i18n.js"></script>
   <script src="../js/rider-ui.js"></script>
