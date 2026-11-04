@@ -269,7 +269,8 @@ const Api = (() => {
       return data('POST', '/driver/register', { body: form, auth: false, isForm: true });
     },
     me: () => data('GET', '/driver/me'),
-    applicationStatus: (driverId) => data('GET', `/driver/application-status/${encodeURIComponent(driverId)}`, { auth: false }),
+    // Authenticated, ownership-checked endpoint (own record only). No driverId in the URL.
+    applicationStatus: () => data('GET', '/driver/application-status'),
     documents: () => data('GET', '/driver/documents'),
     placesAutocomplete: (input) => data('GET', `/driver/places/autocomplete?input=${encodeURIComponent(input)}`, { auth: false }),
     placeDetails: (placeId) => data('GET', `/driver/places/details?placeId=${encodeURIComponent(placeId)}`, { auth: false }),

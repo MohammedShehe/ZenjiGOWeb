@@ -7,5 +7,5 @@
  *   public HTTPS URL of the API, and add this site's origin to CORS_ORIGINS in the backend .env.
  */
 window.ZENJIGO_ADMIN_CONFIG = {
-  apiBase: 'https://zenjigo-backend.onrender.com/api/v1'
+  apiBase: 'https://api.zenjigo.online/api/v1'
 };

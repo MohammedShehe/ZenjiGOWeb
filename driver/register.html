@@ -377,6 +377,9 @@
       try {
         const result = await Api.driver.register(fields, files);
         const driverId = result.driverId || result.driver_id || result.id || '';
+        // The server returns a session only after the email OTP was verified; keep it so the
+        // authenticated status page works.
+        try { Api.saveTokens(result, 'driver'); } catch (_) {}
         showToast('Registration submitted successfully.');
         setTimeout(function () {
           location.href = 'application-status.html?driverId=' + encodeURIComponent(driverId) + '&email=' + encodeURIComponent(fields.email);

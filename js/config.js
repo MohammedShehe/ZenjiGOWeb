@@ -1,7 +1,7 @@
 // ZenjiGO Web - Configuration
 // Change API_BASE to your deployed backend URL when ready.
 var ZENJIGO_CONFIG = window.ZENJIGO_CONFIG = {
-  API_BASE: 'https://zenjigo-backend.onrender.com/api/v1',
+  API_BASE: 'https://api.zenjigo.online/api/v1',
   APP_NAME: 'ZenjiGO',
   ORG_PHONE: '+255 676 891 227',
   ORG_EMAIL: 'support@zenjigo.online',
